@@ -40,7 +40,8 @@ public:
 		_odom_sub(_nh.subscribe("odom", 10, &OdometryPlugin::odom_cb, this)),
 		_tfBuffer(),
 		_tfListener(_tfBuffer)
-	{}
+	{
+	}
 
 	void initialize(UAS &uas_)
 	{
@@ -68,9 +69,9 @@ private:
 		geometry_msgs::TransformStamped t_child_to_ned , t_ref_to_ned;
 		try {
 			t_child_to_ned = _tfBuffer.lookupTransform(
-					"NED", odom->child_frame_id, ros::Time(0));
+					"local_origin_ned", odom->child_frame_id, odom->header.stamp);
 			t_ref_to_ned = _tfBuffer.lookupTransform(
-					"NED", odom->header.frame_id, ros::Time(0));
+					"local_origin_ned", odom->header.frame_id, odom->header.stamp);
 		} catch (tf2::TransformException &ex) {
 		  ROS_WARN("%s",ex.what());
 		  ros::Duration(1.0).sleep();
@@ -104,12 +105,12 @@ private:
 
 		// convert to NED
 		Eigen::Vector3d pos_ned, lin_vel_ned, ang_vel_ned;
-		Eigen::Quaterniond q_ned;
 		tf2::doTransform(pos_ref, pos_ned, t_ref_to_ned);
 		tf2::doTransform(lin_vel_child, lin_vel_ned, t_child_to_ned);
 		tf2::doTransform(ang_vel_child, ang_vel_ned, t_child_to_ned);
 
 		// apply frame transforms
+		Eigen::Quaterniond q_ned;
 		q_ned = ftf::transform_orientation_enu_ned(
 			ftf::transform_orientation_baselink_aircraft(q_enu));
 
@@ -129,7 +130,6 @@ private:
 		lpos.ax = 0.0;
 		lpos.ay = 0.0;
 		lpos.az = 0.0;
-		// [[[end]]] (checksum: e8d5d7d2428935f24933f5321183cea9)
 
 		// TODO: apply ftf::transform_frame(Covariance6d)
 		size_t i = 0;
@@ -143,27 +143,21 @@ private:
 		UAS_FCU(m_uas)->send_message_ignore_drop(lpos);
 
 		// send ATTITUDE_QUATERNION_COV
-		mavlink::common::msg::ATTITUDE_QUATERNION_COV att;
+		//mavlink::common::msg::ATTITUDE_QUATERNION_COV att;
 
-		att.time_usec = stamp;
+		//att.time_usec = stamp;
+		//att.rollspeed = ang_vel_ned.x();
+		//att.pitchspeed = ang_vel_ned.y();
+		//att.yawspeed = ang_vel_ned.z();
 
-		// [[[cog:
-		// for a, b in zip("xyz", ('rollspeed', 'pitchspeed', 'yawspeed')):
-		//     cog.outl("att.%s = ang_vel_ned.%s();" % (b, a))
-		// ]]]
-		att.rollspeed = ang_vel_ned.x();
-		att.pitchspeed = ang_vel_ned.y();
-		att.yawspeed = ang_vel_ned.z();
-		// [[[end]]] (checksum: e100d5c18a64c243df616f342f712ca1)
+		//ftf::quaternion_to_mavlink(q_ned, att.q);
 
-		ftf::quaternion_to_mavlink(q_ned, att.q);
+		//// TODO: apply ftf::transform_frame(Covariance9d)
+		//for (size_t i = 0; i < 9; i++) {
+			//att.covariance[i] = odom->pose.covariance[i];
+		//}
 
-		// TODO: apply ftf::transform_frame(Covariance9d)
-		for (size_t i = 0; i < 9; i++) {
-			att.covariance[i] = odom->pose.covariance[i];
-		}
-
-		UAS_FCU(m_uas)->send_message_ignore_drop(att);
+		//UAS_FCU(m_uas)->send_message_ignore_drop(att);
 	}
 };
 }	// namespace extra_plugins
