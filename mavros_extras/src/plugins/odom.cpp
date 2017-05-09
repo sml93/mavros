@@ -19,6 +19,10 @@
 #include <eigen_conversions/eigen_msg.h>
 
 #include <nav_msgs/Odometry.h>
+#include <geometry_msgs/TransformStamped.h>
+
+#include <tf2_ros/transform_listener.h>
+#include <tf2_eigen/tf2_eigen.h>
 
 namespace mavros {
 namespace extra_plugins {
@@ -32,7 +36,10 @@ namespace extra_plugins {
 class OdometryPlugin : public plugin::PluginBase {
 public:
 	OdometryPlugin() : PluginBase(),
-		_nh("~odometry")
+		_nh("~odometry"),
+		_odom_sub(_nh.subscribe("odom", 10, &OdometryPlugin::odom_cb, this)),
+		_tfBuffer(),
+		_tfListener(_tfBuffer)
 	{}
 
 	void initialize(UAS &uas_)
@@ -51,25 +58,60 @@ public:
 private:
 	ros::NodeHandle _nh;
 	ros::Subscriber _odom_sub;
+ 	tf2_ros::Buffer _tfBuffer;
+	tf2_ros::TransformListener _tfListener;
 
 	/* -*- callbacks -*- */
 
 	void odom_cb(const nav_msgs::Odometry::ConstPtr &odom)
 	{
-		size_t i = 0;
-		Eigen::Affine3d tr;
-		Eigen::Vector3d lin_vel_enu;
-		Eigen::Vector3d ang_vel_enu;
-		tf::poseMsgToEigen(odom->pose.pose, tr);
-		tf::vectorMsgToEigen(odom->twist.twist.linear, lin_vel_enu);
-		tf::vectorMsgToEigen(odom->twist.twist.angular, ang_vel_enu);
+		geometry_msgs::TransformStamped t_child_to_ned , t_ref_to_ned;
+		try {
+			t_child_to_ned = _tfBuffer.lookupTransform(
+					"NED", odom->child_frame_id, ros::Time(0));
+			t_ref_to_ned = _tfBuffer.lookupTransform(
+					"NED", odom->header.frame_id, ros::Time(0));
+		} catch (tf2::TransformException &ex) {
+		  ROS_WARN("%s",ex.what());
+		  ros::Duration(1.0).sleep();
+		  return;
+		}
+
+		// position in ref frame
+		Eigen::Vector3d pos_ref(
+			odom->pose.pose.position.x,
+			odom->pose.pose.position.y,
+			odom->pose.pose.position.z);
+
+		// velocity in child frame
+		Eigen::Vector3d lin_vel_child(
+			odom->twist.twist.linear.x,
+			odom->twist.twist.linear.y,
+			odom->twist.twist.linear.z);
+
+		// angular velocity in child frame
+		Eigen::Vector3d ang_vel_child(
+			odom->twist.twist.angular.x,
+			odom->twist.twist.angular.y,
+			odom->twist.twist.angular.z);
+
+		// quaternion in ENU
+		Eigen::Quaterniond q_enu(
+			odom->pose.pose.orientation.w,
+			odom->pose.pose.orientation.x,
+			odom->pose.pose.orientation.y,
+			odom->pose.pose.orientation.z);
+
+		// convert to NED
+		Eigen::Vector3d pos_ned, lin_vel_ned, ang_vel_ned;
+		Eigen::Quaterniond q_ned;
+		tf2::doTransform(pos_ref, pos_ned, t_ref_to_ned);
+		tf2::doTransform(lin_vel_child, lin_vel_ned, t_child_to_ned);
+		tf2::doTransform(ang_vel_child, ang_vel_ned, t_child_to_ned);
 
 		// apply frame transforms
-		auto pos_ned = ftf::transform_frame_enu_ned(Eigen::Vector3d(tr.translation()));
-		auto lin_vel_ned = ftf::transform_frame_enu_ned(lin_vel_enu);
-		auto ang_vel_ned = ftf::transform_frame_baselink_aircraft(ang_vel_enu);
-		auto q_ned = ftf::transform_orientation_enu_ned(
-					ftf::transform_orientation_baselink_aircraft(Eigen::Quaterniond(tr.rotation())));
+		q_ned = ftf::transform_orientation_enu_ned(
+			ftf::transform_orientation_baselink_aircraft(q_enu));
 
 		uint64_t stamp = odom->header.stamp.toNSec() / 1e3;
 
@@ -78,14 +120,6 @@ private:
 
 		lpos.time_usec = stamp;
 
-		// [[[cog:
-		// for f in "xyz":
-		//     cog.outl("lpos.%s = pos_ned.%s();" % (f, f))
-		// for f in "xyz":
-		//     cog.outl("lpos.v%s = lin_vel_ned.%s();" % (f, f))
-		// for f in "xyz":
-		//     cog.outl("lpos.a%s = 0.0;" % f)
-		// ]]]
 		lpos.x = pos_ned.x();
 		lpos.y = pos_ned.y();
 		lpos.z = pos_ned.z();
@@ -98,6 +132,7 @@ private:
 		// [[[end]]] (checksum: e8d5d7d2428935f24933f5321183cea9)
 
 		// TODO: apply ftf::transform_frame(Covariance6d)
+		size_t i = 0;
 		for (int row = 0; row < 6; row++) {
 			for (int col = row; col < 6; col++) {
 				lpos.covariance[i] = odom->pose.covariance[row * 6 + col];
