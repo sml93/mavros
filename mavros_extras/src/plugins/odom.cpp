@@ -143,21 +143,21 @@ private:
 		UAS_FCU(m_uas)->send_message_ignore_drop(lpos);
 
 		// send ATTITUDE_QUATERNION_COV
-		//mavlink::common::msg::ATTITUDE_QUATERNION_COV att;
+		mavlink::common::msg::ATTITUDE_QUATERNION_COV att;
 
-		//att.time_usec = stamp;
-		//att.rollspeed = ang_vel_ned.x();
-		//att.pitchspeed = ang_vel_ned.y();
-		//att.yawspeed = ang_vel_ned.z();
+		att.time_usec = stamp;
+		att.rollspeed = ang_vel_ned.x();
+		att.pitchspeed = ang_vel_ned.y();
+		att.yawspeed = ang_vel_ned.z();
 
-		//ftf::quaternion_to_mavlink(q_ned, att.q);
+		ftf::quaternion_to_mavlink(q_ned, att.q);
 
-		//// TODO: apply ftf::transform_frame(Covariance9d)
-		//for (size_t i = 0; i < 9; i++) {
-			//att.covariance[i] = odom->pose.covariance[i];
-		//}
+		// TODO: apply ftf::transform_frame(Covariance9d)
+		for (size_t i = 0; i < 9; i++) {
+			att.covariance[i] = odom->pose.covariance[i];
+		}
 
-		//UAS_FCU(m_uas)->send_message_ignore_drop(att);
+		UAS_FCU(m_uas)->send_message_ignore_drop(att);
 	}
 };
 }	// namespace extra_plugins
