@@ -101,7 +101,6 @@ private:
 
 		pose->header = m_uas->synchronized_header(frame_id, pos_ned.time_boot_ms);
 		twist->header = pose->header;
-
 		tf::pointEigenToMsg(enu_position, pose->pose.position);
 		pose->pose.orientation = enu_orientation_msg;
 
@@ -113,7 +112,16 @@ private:
 		odom->child_frame_id = tf_child_frame_id;
 		tf::vectorEigenToMsg(baselink_linear, odom->twist.twist.linear);
 		odom->twist.twist.angular = baselink_angular_msg;
+		for (int i=0; i<3; i++) {
+			odom->twist.covariance[i, i] = 0.1;
+			odom->twist.covariance[i+3, i+3] = 0.01;
+		}
+
 		odom->pose.pose = pose->pose;
+		for (int i=0; i<3; i++) {
+			odom->pose.covariance[i, i] = 1.0;
+			odom->pose.covariance[i+3, i+3] = 0.1;
+		}
 
 		//--------------- Publish Data ---------------//
 		local_odom.publish(odom);
