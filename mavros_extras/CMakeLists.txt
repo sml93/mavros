@@ -5,16 +5,16 @@ project(mavros_extras)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  image_transport
-  cv_bridge
+  #image_transport
+  #cv_bridge
   mavros
   roscpp
   mavros_msgs
   sensor_msgs
   geometry_msgs
   std_msgs
-  visualization_msgs
-  urdf
+  #visualization_msgs
+  #urdf
   tf
 )
 
@@ -67,13 +67,13 @@ include_directories(
 
 add_library(mavros_extras
   src/plugins/distance_sensor.cpp
-  src/plugins/px4flow.cpp
-  src/plugins/image_pub.cpp
-  src/plugins/mocap_pose_estimate.cpp
+  #src/plugins/px4flow.cpp
+  #src/plugins/image_pub.cpp
+  #src/plugins/mocap_pose_estimate.cpp
   src/plugins/vision_pose_estimate.cpp
   src/plugins/vision_speed_estimate.cpp
-  src/plugins/vibration.cpp
-  src/plugins/cam_imu_sync.cpp
+  #src/plugins/vibration.cpp
+  #src/plugins/cam_imu_sync.cpp
 )
 target_link_libraries(mavros_extras
   ${mavros_LIBRARIES}
@@ -81,27 +81,27 @@ target_link_libraries(mavros_extras
 )
 
 ## Declare a cpp executable
-add_executable(gcs_image_bridge
-  src/gcs_image_bridge.cpp
-)
-target_link_libraries(gcs_image_bridge
-  ${mavros_LIBRARIES}
-  ${catkin_LIBRARIES}
-)
+#add_executable(gcs_image_bridge
+  #src/gcs_image_bridge.cpp
+#)
+#target_link_libraries(gcs_image_bridge
+#  ${mavros_LIBRARIES}
+#  ${catkin_LIBRARIES}
+#)
 
-add_executable(copter_visualization
-  src/copter_visualization.cpp
-)
-target_link_libraries(copter_visualization
-  ${catkin_LIBRARIES}
-)
+#add_executable(copter_visualization
+  #src/copter_visualization.cpp
+#)
+#target_link_libraries(copter_visualization
+#  ${catkin_LIBRARIES}
+#)
 
-add_executable(servo_state_publisher
-  src/servo_state_publisher.cpp
-)
-target_link_libraries(servo_state_publisher
-  ${catkin_LIBRARIES}
-)
+#add_executable(servo_state_publisher
+#  src/servo_state_publisher.cpp
+#)
+#target_link_libraries(servo_state_publisher
+#  ${catkin_LIBRARIES}
+#)
 
 #############
 ## Install ##
@@ -119,11 +119,11 @@ install(PROGRAMS
 )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS mavros_extras gcs_image_bridge copter_visualization servo_state_publisher
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+#install(TARGETS mavros_extras gcs_image_bridge copter_visualization servo_state_publisher
+#  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+#)
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/
