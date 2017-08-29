@@ -2,3 +2,9 @@
 *~
 *.pyc
 core
+
+# only want mavros-extras
+libmavconn/
+mavros/
+mavros_msg/
+test_mavros/
