@@ -4,7 +4,7 @@
 core
 
 # only want mavros-extras
-libmavconn/
-mavros/
-mavros_msg/
-test_mavros/
+libmavconn/*
+mavros/*
+mavros_msg/*
+test_mavros/*
