@@ -31,6 +31,7 @@ from mavros.utils import *
 from mavros import setpoint as SP
 from tf.transformations import quaternion_from_euler
 
+
 class SetpointPosition:
     """
     This class sends position targets to FCU's position controller
@@ -102,39 +103,54 @@ class SetpointPosition:
            is_near('Z', topic.pose.position.z, self.z):
             self.done = True
             self.done_evt.set()
-                
+
+    def arm(self):
+        if self.count < self.timeout:
+            # FIXME: arm and switch to offboard
+            # (need to wait the first few rounds until PX4 has the offboard stream)
+            if not self.armed and self.count > 5:
+                self._srv_cmd_long(False, 176, False,
+                                   1, 6, 0, 0, 0, 0, 0)
+                # make sure the first command doesn't get lost
+                time.sleep(1)
+
+                self._srv_cmd_long(False, 400, False,
+                                   # arm
+                                   1, 0, 0, 0, 0, 0, 0)
+
+                self.armed = True
+            self.count = self.count + 1
+            self.rate.sleep()
+
 
 def setpoint_demo():
-    #Offboard attitude control
     rospy.init_node('setpoint_position_demo')
     mavros.set_namespace()  # initialize mavros module with default namespace
     rate = rospy.Rate(20)
 
     setpoint = SetpointPosition()
 
-    #rospy.loginfo("Climb")
-    #setpoint.set(0.0, 0.0, 30.0, 10)
-    #setpoint.set(10.0, 10.0, 30.0, 10)
-    #setpoint.set(20.0, 50.0, 40.0, 10)
-    #setpoint.set(70.0, 50.0, 40.0, 10)
+    rospy.loginfo("Climb")
+    setpoint.set(50.0, 50.0, 3.0, 50)
+    setpoint.set(50.0, 50.0, 10.0, 50)
 
-    #rospy.loginfo("Sink")
-    #setpoint.set(0.0, 0.0, 10.0, 50)
+    rospy.loginfo("Sink")
+    setpoint.set(20.0, 20.0, 8.0, 25)
 
-    #rospy.loginfo("Fly to the right")
-    #setpoint.set(20.0, 50.0, 40.0, 50)
+    rospy.loginfo("Fly to the right")
+    setpoint.set(10.0, 4.0, 8.0, 5)
 
-    #rospy.loginfo("Fly to the left")
-    #setpoint.set(70.0, 50.0, 40.0, 50)
+    rospy.loginfo("Fly to the left")
+    setpoint.set(0.0, 0.0, 8.0, 5)
 
     offset_x = 0.0
     offset_y = 0.0
-    offset_z = 12.0
+    offset_z = 10.0
     sides = 360
-    radius = 12    #smallest radius 8.5
+    radius = 20
 
-    rospy.loginfo("Fly in a circle")   #(latitude, longitude, altitude, motorspeed)
-    setpoint.set(0.0, 0.0, 12.0, 12)   # Climb to the starting height first, highest speed about 15
+    rospy.loginfo("Fly in a circle")
+    setpoint.set(0.0, 0.0, 10.0, 3)   # Climb to the starting height first
     i = 0
     while not rospy.is_shutdown():
         x = radius * cos(i * 2 * pi / sides) + offset_x
@@ -146,7 +162,7 @@ def setpoint_demo():
         if (i == 0 or i == sides):
             # Let it reach the setpoint.
             wait = True
-            delay = 1
+            delay = 5
 
         setpoint.set(x, y, z, delay, wait)
 
@@ -155,7 +171,7 @@ def setpoint_demo():
 
         if (i > sides):
             rospy.loginfo("Fly home")
-            setpoint.set(0.0, 0.0, 10.0, 12)
+            setpoint.set(0.0, 0.0, 10.0, 5)
             break
 
     # Simulate a slow landing.
