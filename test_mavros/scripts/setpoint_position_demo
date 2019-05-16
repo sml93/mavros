@@ -131,7 +131,7 @@ def setpoint_demo():
     offset_y = 0.0
     offset_z = 12.0
     sides = 360
-    radius = 12    #smallest radius 8.5
+    radius = 10    #smallest radius 8.5
 
     rospy.loginfo("Fly in a circle")   #(latitude, longitude, altitude, motorspeed)
     setpoint.set(0.0, 0.0, 12.0, 12)   # Climb to the starting height first, highest speed about 15

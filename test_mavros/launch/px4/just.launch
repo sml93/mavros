@@ -10,11 +10,23 @@
     <arg name="log_file" default="$(arg ns)"/>
 
     <!-- Gazebo simulation and vehicle model launch -->
+
+    <!-- <include file="$(find rotors_gazebo)/launch/iris_empty_world.launch">
+        <arg name="headless" value="$(arg headless)"/>
+        <arg name="gui" value="$(arg gui)"/>
+        <arg name="enable_logging" value="$(arg enable_logging)" />
+        <arg name="enable_ground_truth" value="$(arg enable_ground_truth)" />
+        <arg name="log_file" value="$(arg log_file)"/>
+    </include>
+
+    <include file="$(find px4)/launch/iris.launch">
+        <arg name="ns" value="$(arg ns)"/>
+    </include> -->
     
 
     <!-- MAVROS launcher -->
-    <arg name="fcu_url" default="/dev/ttyMFD1:921600" />
-    <arg name="gcs_url" default="udp://:14556@192.168.42.124:14550" />
+    <arg name="fcu_url" default="udp://:14540@192.168.1.36:14557" />
+    <arg name="gcs_url" default="" />
     <arg name="tgt_system" default="1" />
     <arg name="tgt_component" default="1" />
     <arg name="log_output" default="screen" />
