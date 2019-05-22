@@ -127,7 +127,7 @@ class Straight_Inspection:
 
                 self.armed = True
             self.count = self.count + 1
-            self.rate.sleep()
+            self.rate.sleep() # The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
 
     
 # Sample characteristics of a type PoseStamped
@@ -170,7 +170,7 @@ class Straight_Inspection:
     def align(self): 
         # Initialise necessary headers
         pos = PoseStamped()
-        pos.header = Header()
+        pos.header = Header() # initialising a new header for a new PoseStamped()
         pos.header.frame_id = "initial_alignment"
         pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
 
@@ -250,11 +250,12 @@ class Straight_Inspection:
         # Publishing to rostopic   
         self.pub_spt.publish(pos) # updated pose from pos.pose.orientation
 
+
 if __name__ == '__main__':
     rospy.init_node('shadow_test_node', anonymous=True)
 
     node = Straight_Inspection()
 
-    rospy.spin()
+    rospy.spin()  # spin() simply keeps python from exiting until this node is stopped
      
 
