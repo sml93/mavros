@@ -83,7 +83,7 @@ class SetpointPosition:
     # General callback functions used in tests
 
         while not rospy.is_shutdown(): #subsequent functions below are run automatically using this while loop (inert functions) 
-            self.test_posctl()  
+            #self.test_posctl()  
             #self.test_attctl()
             #self.lpe()
             #self.vel()

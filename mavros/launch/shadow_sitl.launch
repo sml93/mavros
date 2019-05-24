@@ -44,7 +44,7 @@
 
     <!-- can insert the launch file for the teraRanger pkg from the teraranger_array node -->
     
-    <!-- Spawn iris with depth camera -->
+    <!-- Spawn iris with depth camera MUST INITIALISE WITH PYTHON 2.7-->
     <node name="spawn_model" pkg="gazebo_ros" type="spawn_model" output="screen"
           args="-sdf -database $(arg model) -model iris">
     </node>
