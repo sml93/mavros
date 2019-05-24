@@ -11,7 +11,7 @@
     <arg name="tgt_system" default="1" />
     <arg name="tgt_component" default="1" />
     <arg name="mavros_transformation" default="-1.57" />
-    <arg name="model" default="iris"/> <!--potentially there might be conflict if model was transferred to mavros, therefore, root folder remains in avoidance --> 
+    <arg name="model" default="iris" /> <!--potentially there might be a conflict if model was transferred to mavros, therefore, root folder remains in avoidance --> 
 
     <param name="use_sim_time" value="true" />
 

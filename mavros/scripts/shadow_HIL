@@ -75,7 +75,7 @@ class shadow_HIL:
             if self.sensor_0 <= 0.6 and self.local_position.pose.position.x > -2.0:
                 self.deviance()
                
-            elif self.sensor_0 <= 0.6 and self.local_position.pose.position.x < -2.0:
+            elif self.sensor_0 <= 0.6 and self.local_position.pose.position.x <= -2.0:
                 self.remain()
 
             else:
@@ -118,8 +118,8 @@ class shadow_HIL:
         pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
 
         # Establish desired setpoints
-        pos.pose.position.x = 0 
-        pos.pose.position.y = 0
+        pos.pose.position.x = 0.0 
+        pos.pose.position.y = 0.0
         pos.pose.position.z = self.z
 
         # Establish desired orientation at setpoint
@@ -127,7 +127,7 @@ class shadow_HIL:
         roll = radians(roll_degrees)
         pitch_degrees = 0.0 
         pitch = radians(pitch_degrees)
-        yaw_degrees = 0.0  # North
+        yaw_degrees = 0.0  
         yaw = radians(yaw_degrees)
 
         # Execute desired orientation
@@ -145,7 +145,7 @@ class shadow_HIL:
         pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
 
         # Establish desired setpoints
-        pos.pose.position.x = self.local_position.pose.position.x - 0.5
+        pos.pose.position.x = self.local_position.pose.position.x - 0.4
         pos.pose.position.y = self.local_position.pose.position.y 
         pos.pose.position.z = self.z
 
@@ -154,7 +154,7 @@ class shadow_HIL:
         roll = radians(roll_degrees)
         pitch_degrees = 0.0 
         pitch = radians(pitch_degrees)
-        yaw_degrees = 0.0  # North
+        yaw_degrees = 0.0  
         yaw = radians(yaw_degrees)
 
         # Execute desired orientation
@@ -172,7 +172,7 @@ class shadow_HIL:
         pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
 
         # Establish desired setpoints
-        pos.pose.position.x = -3.0
+        pos.pose.position.x = -2.0
         pos.pose.position.y = self.local_position.pose.position.y 
         pos.pose.position.z = self.z
 
@@ -181,7 +181,7 @@ class shadow_HIL:
         roll = radians(roll_degrees)
         pitch_degrees = 0.0 
         pitch = radians(pitch_degrees)
-        yaw_degrees = 0.0  # North
+        yaw_degrees = 0.0  
         yaw = radians(yaw_degrees)
 
         # Execute desired orientation
