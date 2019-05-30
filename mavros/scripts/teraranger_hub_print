@@ -59,7 +59,7 @@ class print_teraranger_hub:
 
             #for i in self.collective.ranges:
             #    print self.collective.ranges[0].range 
-            print (self.sensor_0) 
+            print self.sensor_0 
 
             self.rate.sleep() #The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
 
