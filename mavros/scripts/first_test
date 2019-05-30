@@ -79,7 +79,7 @@ class Straight_Inspection:
             #print (self.local_position.pose.position.x, self.sensor_0, self.sensor_90)
             print self.sensor_45.range # run the node a few times if it doesnt respond at first call
 
-            if abs(self.sensor_0.range - 4.0) == 1.0 or abs(self.sensor_0.range - 4.0) < 1.0 or abs(self.sensor_45.range - 5.0) == 1 or abs(self.sensor_45.range - 5.0) < 1.0 or abs(self.sensor_90.range - 4.0) == 1.0 or abs(self.sensor_90.range - 4.0) < 1.0:
+            if abs(self.sensor_0.range - 4.0) <= 1.0 or abs(self.sensor_45.range - 5.0) <= 1.0 or abs(self.sensor_90.range - 4.0) <= 1.0:
                 self.align()
                 self.counter+=1       
   
@@ -212,7 +212,7 @@ class Straight_Inspection:
         roll = radians(roll_degrees)
         pitch_degrees = 0.0 
         pitch = radians(pitch_degrees)
-        yaw_degrees = 0.0  # North
+        yaw_degrees = 0.0 
         yaw = radians(yaw_degrees)
 
         # Execute desired orientation
