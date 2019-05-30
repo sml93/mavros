@@ -26,4 +26,8 @@
 		<arg name="respawn_mavros" default="$(arg respawn_mavros)" />
 	</include>
 
+	 <!-- can insert the launch file for the teraRanger pkg from the teraranger_array node -->
+        <include file="$(find teraranger_array)/launch/hub_evo_60m_example.launch">
+        </include> 	
+
 </launch>
