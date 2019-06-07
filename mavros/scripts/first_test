@@ -177,7 +177,7 @@ class Straight_Inspection:
         # Establish desired setpoints
         pos.pose.position.x = self.local_position.pose.position.x 
         pos.pose.position.y = self.local_position.pose.position.y
-        pos.pose.position.z = self.z
+        pos.pose.position.z = self.local_position.pose.position.z
 
         # Establish desired orientation at setpoint
         roll_degrees = 0.0 
@@ -205,7 +205,7 @@ class Straight_Inspection:
         # Establish desired setpoints
         pos.pose.position.x = self.local_position.pose.position.x + 0.3
         pos.pose.position.y = self.local_position.pose.position.y
-        pos.pose.position.z = self.z
+        pos.pose.position.z = self.local_position.pose.position.z
 
         # Establish desired orientation at setpoint
         roll_degrees = 0.0 
@@ -233,7 +233,8 @@ class Straight_Inspection:
         # Establish desired setpoints
         pos.pose.position.x = self.local_position.pose.position.x 
         pos.pose.position.y = self.local_position.pose.position.y - 0.3
-        pos.pose.position.z = self.z
+        #pos.pose.position.z = self.z
+        pos.pose.position.z = self.local_position.pose.position.z
 
         # Establish desired orientation at setpoint
         roll_degrees = 0.0 

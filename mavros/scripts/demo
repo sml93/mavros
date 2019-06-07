@@ -57,6 +57,7 @@ class SetpointPosition:
         self.count = 0
         self.error_updated = [False, False]
         self.descent = False
+        self.lalalala = 0.0
 
         rospy.wait_for_service('mavros/cmd/arming', 30)
 
@@ -64,6 +65,7 @@ class SetpointPosition:
         rospy.Subscriber("mavros/global_position/global", NavSatFix, self.global_position_callback)
         rospy.Subscriber("error_dx", Float32, self.error_dx)
         rospy.Subscriber("error_dy", Float32, self.error_dy)
+        rospy.Subscriber("lalalala", Float32, self.lalalala) # topics can be subscribed and publish  
         self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
         self.pub_att = rospy.Publisher('mavros/setpoint_attitude/attitude', PoseStamped, queue_size=10)
         self.pub_thr = rospy.Publisher('mavros/setpoint_attitude/att_throttle', Float64, queue_size=10)
@@ -132,6 +134,9 @@ class SetpointPosition:
     
     def position_callback(self, data):
         self.local_position = data
+
+    def lalalala(self, data):
+        self.lalalala = data    
 
     def global_position_callback(self, data):
         self.has_global_pos = True

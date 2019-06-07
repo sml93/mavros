@@ -45,7 +45,7 @@ class SetpointPosition:
     This class sends position targets to FCU's position controller
     """
     def __init__(self):
-        self.x = 5.0
+        self.x = -1.0
         self.y = 0.0
         self.z = 2.5
         self.errorDx = 0.0
@@ -92,25 +92,25 @@ class SetpointPosition:
             self.rate.sleep()
 
  
-    # def vel(self):
-    #     if (True):
-    #    # if (self.error_updated[0] == True and self.error_updated[1] == True):
-    #         self.error_updated[0] = False
-    #         self.error_updated[1] = False
-    #         pos = TwistStamped()
-    #         pos.header = Header()
-    #         pos.header.frame_id = "local_origin"
-    #         pos.twist.linear.x = 0
-    #         pos.twist.linear.y = 0
-    #         pos.twist.linear.z = 0.2
+    def vel(self):
+        if (True):
+       # if (self.error_updated[0] == True and self.error_updated[1] == True):
+            self.error_updated[0] = False
+            self.error_updated[1] = False
+            pos = TwistStamped()
+            pos.header = Header()
+            pos.header.frame_id = "local_origin"
+            pos.twist.linear.x = 0
+            pos.twist.linear.y = 0
+            pos.twist.linear.z = 0.2
 
-    #         pos.twist.angular.x = 0
-    #         pos.twist.angular.y = 0
-    #         pos.twist.angular.z = 0
+            pos.twist.angular.x = 0
+            pos.twist.angular.y = 0
+            pos.twist.angular.z = 0
         
-    #         # update timestamp for each published SP
-    #         pos.header.stamp = rospy.Time.now()
-    #         self.pub_vel.publish(pos)
+            # update timestamp for each published SP
+            pos.header.stamp = rospy.Time.now()
+            self.pub_vel.publish(pos)
 
     
     def position_callback(self, data): # callback invoked with the message as the first arg
