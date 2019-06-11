@@ -73,7 +73,7 @@ class Straight_Inspection:
       
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
             
-            print self.sensor_0.range, self.sensor_90.range, self.sensor_180.range, self.sensor_270.range
+            print self.sensor_0, self.sensor_90, self.sensor_180, self.sensor_270
             self.vel()
             self.rate.sleep()
 
