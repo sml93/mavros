@@ -1,0 +1,229 @@
+#!/usr/bin/env python
+# vim:set ts=4 sw=4 et:
+#
+# Copyright 2015 UAVenture AG.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# Updated: Tarek Taha : tarek.taha@kustar.ac.ae, Vladimir Ermakov
+#    - Changed topic names after re-factoring : https://github.com/mavlink/mavros/issues/233
+#    - Use mavros.setpoint module for topics
+
+import rospy
+import thread
+import threading
+import time
+import mavros
+
+from numpy import linalg #linear algebra, can be used to find things like eigenvectors etc.
+import numpy as np
+
+from math import *
+from mavros.utils import *
+from mavros import setpoint as SP
+from std_msgs.msg import Header #type 
+from std_msgs.msg import Float64, Float32 #type from msg generation
+from geometry_msgs.msg import PoseStamped, Quaternion, TwistStamped #geometry
+from tf.transformations import quaternion_from_euler #transformation
+from mavros_msgs.srv import CommandLong #service_class
+from mavros_msgs.msg import PositionTarget,Thrust
+from sensor_msgs.msg import NavSatFix,Range #type
+
+
+class setpoint_raw:
+    """
+    This class sends position targets to FCU's position controller
+    """
+    def __init__(self):
+        self.x = 3.0
+        self.y = 4.0
+        self.z = 1.0   
+        self.armed = False  
+        self.sensor_0 = Range()
+        self.sensor_270 = Range()
+        self.sensor_90 = Range()
+        self.sensor_180 = Range() #very impt, must initialise as Range()
+        self.timeout = 180
+        self.rate = rospy.Rate(10) # 10hz is the original 
+        self.local_position = PoseStamped() 
+        self.count = 0
+        self.counter = 0
+
+        # rospy.wait_for_service('mavros/cmd/arming', 30) # wait for arming, queue for 30s
+
+        # rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
+
+        rospy.Subscriber("gazebo/range_0", Range, self.range_0)
+        rospy.Subscriber("gazebo/range_270", Range, self.range_270)
+        rospy.Subscriber("gazebo/range_90", Range, self.range_90)
+        rospy.Subscriber("gazebo/range_180", Range, self.range_180)
+        rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
+        self.pub_vel = rospy.Publisher('mavros/setpoint_velocity/cmd_vel', TwistStamped, queue_size=10)
+        self.pub_thr = rospy.Publisher('mavros/setpoint_attitude/thrust', Thrust, queue_size=10)
+        self.pub_pos = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=1)
+
+        # rospy.wait_for_service('mavros/cmd/command', 30)
+        # self._srv_cmd_long = rospy.ServiceProxy('mavros/cmd/command', CommandLong, persistent=True)
+      
+        while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
+            #self.fly() 
+            print self.sensor_0.range, self.sensor_90.range, self.sensor_180.range, self.sensor_270.range
+            self.vel()
+            self.rate.sleep()
+
+    def range_0(self,data):
+        self.sensor_0 = data
+    
+    def range_270(self,data):
+        self.sensor_270 = data
+
+    def range_90(self,data):
+        self.sensor_90 = data    
+
+    def range_180(self,data):
+        self.sensor_180 = data 
+
+    def position_callback(self, data): # callback invoked with the message as the first arg
+        self.local_position = data 
+
+    def arm(self):
+        if self.count < self.timeout:
+            # FIXME: arm and switch to offboard
+            # (need to wait the first few rounds until PX4 has the offboard stream)
+            if not self.armed and self.count > 5:
+                self._srv_cmd_long(False, 176, False,
+                                   1, 6, 0, 0, 0, 0, 0)
+                # make sure the first command doesn't get lost
+                time.sleep(1)
+
+                self._srv_cmd_long(False, 400, False,
+                                   # arm
+                                   1, 0, 0, 0, 0, 0, 0)
+
+                self.armed = True
+            self.count = self.count + 1
+            self.rate.sleep() # The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
+
+    def vel(self): # can afford to add in 90 and -90 deg sensors for centering later on 
+        pos = TwistStamped()
+        pos.header = Header()
+        pos.header.frame_id = "local_origin (velocity_setpoints)"
+
+        if self.sensor_0.range >= 3.2 and self.sensor_270.range - self.sensor_90.range >= 0.2:
+            pos.twist.linear.x = 0.05 # east
+            pos.twist.linear.y = 0.05 # north
+            pos.twist.linear.z = 0.0 # up
+
+            pos.twist.angular.x = 0.0
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+
+
+        elif self.sensor_0.range >= 3.2 and self.sensor_90.range - self.sensor_270.range >= 0.2:
+            pos.twist.linear.x = 0.05 # east
+            pos.twist.linear.y = -0.05 # north
+            pos.twist.linear.z = 0.0 # up
+
+            pos.twist.angular.x = 0.0
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+
+
+        elif self.sensor_0.range >= 3.2:
+            pos.twist.linear.x = 0.05 # east
+            pos.twist.linear.y = 0.0 # north
+            pos.twist.linear.z = 0.0 # up
+
+            pos.twist.angular.x = 0.0
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+
+
+        elif self.sensor_270.range - self.sensor_90.range >= 0.2:
+            pos.twist.linear.x = 0.0 # east
+            pos.twist.linear.y = 0.05 # north
+            pos.twist.linear.z = 0.0 # up
+
+            pos.twist.angular.x = 0.0
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+
+
+        elif self.sensor_90.range - self.sensor_270.range >= 0.2:
+            pos.twist.linear.x = 0.0 # east
+            pos.twist.linear.y = -0.05 # north
+            pos.twist.linear.z = 0.0 # up
+
+            pos.twist.angular.x = 0.0
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+
+        else:
+            pos.twist.linear.x = 0.0
+            pos.twist.linear.y = 0.0
+            pos.twist.linear.z = 0.0
+
+            pos.twist.angular.x = 0.0
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0
+    
+        # update timestamp for each published SP
+        pos.header.stamp = rospy.Time.now()
+        self.pub_vel.publish(pos)
+
+# front arrow and x direction faces east (ENU)
+# y direction faces north 
+# yaw angle look from bottom up, its clockwise ninety, the blue props are front 
+
+    def fly(self):
+        # either u do the below or u need to use bitmasking for uint16, jus basically add the uint16 numbers found in mavros documentation
+        pos = PositionTarget(coordinate_frame = PositionTarget.FRAME_LOCAL_NED, # (originally) Local coordinate frame, Z-up (x: north, y: east, z: down), somehow it transformed to ENU (x: east, y: north, z: up)
+                             type_mask=
+                             PositionTarget.IGNORE_VX + PositionTarget.IGNORE_VY + PositionTarget.IGNORE_VZ +
+                             PositionTarget.IGNORE_AFX + PositionTarget.IGNORE_AFY + PositionTarget.IGNORE_AFZ + 
+                             PositionTarget.IGNORE_YAW_RATE
+                             )
+
+        pos.header.frame_id = "fly"  
+        pos.position.x = self.x
+        pos.position.y = self.y
+        pos.position.z = self.z
+        pos.yaw = radians(90.0) # True North
+
+        pos.header.stamp = rospy.Time.now()
+        self.pub_pos.publish(pos)
+
+
+    def throttle(self):
+        t = Thrust()
+        t.header = Header()
+        t.header.frame_id = "thrust"
+        # p_control
+        actual_z = self.local_position.pose.position.z
+        error = self.z - actual_z
+        kp = 0.1
+
+        t.thrust = 0.6 + (kp * error)
+        t.header.stamp = rospy.Time.now()
+        self.pub_thr.publish(t)
+
+
+if __name__ == '__main__':
+    rospy.init_node('setpoint_raw', anonymous=True)
+
+    node = setpoint_raw()
+
+    rospy.spin()  # spin() simply keeps python from exiting until this node is stopped
+     
+
