@@ -38,6 +38,7 @@ from geometry_msgs.msg import PoseStamped, Quaternion, TwistStamped #geometry
 from tf.transformations import quaternion_from_euler #transformation
 from mavros_msgs.srv import CommandLong #service_class
 from sensor_msgs.msg import NavSatFix,Range #type
+from mavros_msgs.msg import PositionTarget,Thrust
 from teraranger_array.msg import RangeArray
 
 
@@ -45,66 +46,50 @@ class Straight_Inspection:
     """
     This class sends position targets to FCU's position controller
     """
-    def __init__(self):
-        self.z = 1.0   
+    def __init__(self): 
         self.armed = False  
         self.collective = RangeArray()
         self.sensor_0 = 0.0
-        self.sensor_45 = 0.0
+        self.sensor_180 = 0.0
         self.sensor_90 = 0.0
-        self.sensor_135 = 0.0 
+        self.sensor_270 = 0.0 
         self.timeout = 180
-        self.rate = rospy.Rate(50) # 10hz is the original 
+        self.rate = rospy.Rate(10) # 10hz is the original 
         self.local_position = PoseStamped() 
         self.count = 0
         self.counter = 0
 
-        rospy.wait_for_service('mavros/cmd/arming', 30) # wait for arming, queue for 30s
-
+        #rospy.wait_for_service('mavros/cmd/arming', 30) # wait for arming, queue for 30s
         #rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
 
         rospy.Subscriber("hub_1/ranges_raw", RangeArray, self.hub_callback)
         rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
-        self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
+        self.pub_vel = rospy.Publisher('mavros/setpoint_velocity/cmd_vel', TwistStamped, queue_size=10)
+        self.pub_thr = rospy.Publisher('mavros/setpoint_attitude/thrust', Thrust, queue_size=10)
+        self.pub_pos = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=1)
 
-        rospy.wait_for_service('mavros/cmd/command', 30)
-        self._srv_cmd_long = rospy.ServiceProxy('mavros/cmd/command', CommandLong, persistent=True)
+        #rospy.wait_for_service('mavros/cmd/command', 30)
+        #self._srv_cmd_long = rospy.ServiceProxy('mavros/cmd/command', CommandLong, persistent=True)
       
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
             
-            self.arm() # Arming commences
-            #print (self.local_position.pose.position.x, self.sensor_0, self.sensor_90)
-            print self.sensor_45 # run the node a few times if it doesnt respond at first call
-
-            if abs(self.sensor_0 - 4.0) <= 1.0 or abs(self.sensor_45 - 5.0) <= 1.0 or abs(self.sensor_90 - 4.0) <= 1.0:
-                self.align()
-                self.counter+=1       
-  
-            else: 
-                self.closer_to_wall()
-
-            if abs(self.sensor_135 - self.sensor_45) < 2 and self.counter > 1:
-                self.along_wall()
-
-            # if abs(self.sensor_135.range - self.sensor_45.range) > 20 and self.counter > 1:
-            # #    self.x = self.local_position.pose.position.x 
-            # #    self.y = self.local_position.pose.position.y
-            #     self.return_to_home()
-
+            print self.sensor_0.range, self.sensor_90.range, self.sensor_180.range, self.sensor_270.range
+            self.vel()
             self.rate.sleep()
+
 
     def hub_callback(self,msg): # callback invoked with the message as the first arg
         self.collective = msg
         for i in self.collective.ranges:
-            self.sensor_0 = self.collective.ranges[6].range 
-            self.sensor_45 = self.collective.ranges[7].range
-            self.sensor_90 = self.collective.ranges[0].range
-            self.sensor_135 = self.collective.ranges[1].range 
-            self.sensor_180 = self.collective.ranges[2].range   
+            self.sensor_0 = self.collective.ranges[1].range 
+            self.sensor_90 = self.collective.ranges[3].range
+            self.sensor_180 = self.collective.ranges[5].range 
+            self.sensor_270 = self.collective.ranges[7].range   
 
 
     def position_callback(self, data): # callback invoked with the message as the first arg
         self.local_position = data 
+
 
     def arm(self):
         if self.count < self.timeout:
@@ -124,127 +109,84 @@ class Straight_Inspection:
             self.count = self.count + 1
             self.rate.sleep() # The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
 
+
+    def vel(self): # can afford to add in 90 and -90 deg sensors for centering later on 
+        pos = TwistStamped()
+        pos.header = Header()
+        pos.header.frame_id = "local_origin (velocity_setpoints)"
+
+        if self.sensor_0 >= 2.0 and abs(self.sensor_270 - self.sensor_90) >= 0.35:
+            pos.twist.linear.x = 0.05 # east
+            pos.twist.linear.y = 0.05 # north
+            pos.twist.linear.z = 0.0 # up
+
+            pos.twist.angular.x = 0.0
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+
+
+        elif self.sensor_0 >= 2.0 and abs(self.sensor_90 - self.sensor_270) >= 0.35:
+            pos.twist.linear.x = 0.05 # east
+            pos.twist.linear.y = -0.05 # north
+            pos.twist.linear.z = 0.0 # up
+
+            pos.twist.angular.x = 0.0
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+
+
+        elif self.sensor_0 >= 2.0:
+            pos.twist.linear.x = 0.05 # east
+            pos.twist.linear.y = 0.0 # north
+            pos.twist.linear.z = 0.0 # up
+
+            pos.twist.angular.x = 0.0
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+
+
+        elif self.sensor_0 <= 1.0:
+            pos.twist.linear.x = -0.05 # east
+            pos.twist.linear.y = 0.0 # north
+            pos.twist.linear.z = 0.0 # up
+
+            pos.twist.angular.x = 0.0
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+
+
+        elif abs(self.sensor_270 - self.sensor_90) >= 0.35:
+            pos.twist.linear.x = 0.0 # east
+            pos.twist.linear.y = 0.05 # north
+            pos.twist.linear.z = 0.0 # up
+
+            pos.twist.angular.x = 0.0
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+
+
+        elif abs(self.sensor_90 - self.sensor_270) >= 0.35:
+            pos.twist.linear.x = 0.0 # east
+            pos.twist.linear.y = -0.05 # north
+            pos.twist.linear.z = 0.0 # up
+
+            pos.twist.angular.x = 0.0
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+
+        else:
+            pos.twist.linear.x = 0.0
+            pos.twist.linear.y = 0.0
+            pos.twist.linear.z = 0.0
+
+            pos.twist.angular.x = 0.0
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0
     
-# Sample characteristics of a type PoseStamped
-# goal = PoseStamped()
-# goal.header.frame_id = "/base_link"
-# goal.header.stamp = rospy.Time.now()
-# goal.pose.position.z = 1.1
-# goal.pose.position.x = 0.7
-# goal.pose.position.y = -0.3
-# goal.pose.orientation.w = 1.0
-# arm_pub.publish(goal)
-# rospy.sleep(1)
-# plan.publish(Empty())
-
-# rospy.sleep(5)
-
-    def return_to_home(self): 
-        # Initialise necessary headers
-        pos = PoseStamped()
-        pos.header = Header()
-        pos.header.frame_id = "initial_alignment"
-        pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
-
-        # Establish desired setpoints
-        pos.pose.position.x = 0 
-        pos.pose.position.y = 0
-        pos.pose.position.z = self.z
-
-        # Establish desired attitude towards setpoint
-        # For demo purposes we will lock yaw/heading to north.
-        yaw_degrees = 0  # North = 90
-        yaw = radians(yaw_degrees)
-
-        quaternion = quaternion_from_euler(0,0,0.0) #roll,pitch,yaw
-        pos.pose.orientation = Quaternion(*quaternion)
-        
-        # Publishing to rostopic   
-        self.pub_spt.publish(pos) # updated pose from pos.pose.orientation
-
-    def align(self): 
-        # Initialise necessary headers
-        pos = PoseStamped()
-        pos.header = Header() # initialising a new header for a new PoseStamped()
-        pos.header.frame_id = "initial_alignment"
-        pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
-
-        # Establish desired setpoints
-        pos.pose.position.x = self.local_position.pose.position.x 
-        pos.pose.position.y = self.local_position.pose.position.y
-        pos.pose.position.z = self.z
-
-        # Establish desired orientation at setpoint
-        roll_degrees = 0.0 
-        roll = radians(roll_degrees)
-        pitch_degrees = 0.0 
-        pitch = radians(pitch_degrees)
-        yaw_degrees = 90.0  # North
-        yaw = radians(yaw_degrees)
-
-        # Execute desired orientation
-        quaternion = quaternion_from_euler(roll, pitch, yaw) #roll,pitch,yaw
-        pos.pose.orientation = Quaternion(*quaternion)
-        
-        # Publishing to rostopic   
-        self.pub_spt.publish(pos) # updated pose from pos.pose.orientation
-
-
-    def closer_to_wall(self): 
-        # Initialise necessary headers
-        pos = PoseStamped()
-        pos.header = Header()
-        pos.header.frame_id = "closer_to_wall"
-        pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
-
-        # Establish desired setpoints
-        pos.pose.position.x = self.local_position.pose.position.x + 0.3
-        pos.pose.position.y = self.local_position.pose.position.y
-        pos.pose.position.z = self.z
-
-        # Establish desired orientation at setpoint
-        roll_degrees = 0.0 
-        roll = radians(roll_degrees)
-        pitch_degrees = 0.0 
-        pitch = radians(pitch_degrees)
-        yaw_degrees = 0.0 
-        yaw = radians(yaw_degrees)
-
-        # Execute desired orientation
-        quaternion = quaternion_from_euler(roll, pitch, yaw)
-        pos.pose.orientation = Quaternion(*quaternion)
-        
-        # Publishing to rostopic   
-        self.pub_spt.publish(pos) # updated pose from pos.pose.orientation
-
-
-    def along_wall(self): 
-        # Initialise necessary headers
-        pos = PoseStamped()
-        pos.header = Header()
-        pos.header.frame_id = "along_wall"
-        pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
-
-        # Establish desired setpoints
-        pos.pose.position.x = self.local_position.pose.position.x 
-        pos.pose.position.y = self.local_position.pose.position.y - 0.3
-        pos.pose.position.z = self.z
-
-        # Establish desired orientation at setpoint
-        roll_degrees = 0.0 
-        roll = radians(roll_degrees)
-        pitch_degrees = 0.0 
-        pitch = radians(pitch_degrees)
-        yaw_degrees = 90.0  # North
-        yaw = radians(yaw_degrees)
-
-        # Execute desired orientation
-        quaternion = quaternion_from_euler(roll, pitch, yaw) #roll,pitch,yaw
-        pos.pose.orientation = Quaternion(*quaternion)
-        
-        # Publishing to rostopic   
-        self.pub_spt.publish(pos) # updated pose from pos.pose.orientation
-
+        # update timestamp for each published SP
+        pos.header.stamp = rospy.Time.now()
+        self.pub_vel.publish(pos)      
+    
 
 if __name__ == '__main__':
     rospy.init_node('shadow_test_node', anonymous=True)
