@@ -78,7 +78,7 @@ class setpoint_raw:
       
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
             #self.fly() 
-            print self.sensor_0.range, self.sensor_90.range, self.sensor_180.range, self.sensor_270.range
+            print "0:", self.sensor_0.range, "90:", self.sensor_90.range, "180:", self.sensor_180.range, "270:", self.sensor_270.range
             self.vel()
             self.rate.sleep()
 
@@ -125,8 +125,8 @@ class setpoint_raw:
             pos.twist.linear.y = 0.05 # north
             pos.twist.linear.z = 0.0 # up
 
-            pos.twist.angular.x = 0.0
-            pos.twist.angular.y = 0.0
+            pos.twist.angular.x = 0.08
+            pos.twist.angular.y = 0.08
             pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
 
@@ -135,8 +135,8 @@ class setpoint_raw:
             pos.twist.linear.y = -0.05 # north
             pos.twist.linear.z = 0.0 # up
 
-            pos.twist.angular.x = 0.0
-            pos.twist.angular.y = 0.0
+            pos.twist.angular.x = 0.08
+            pos.twist.angular.y = -0.08
             pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
 
@@ -145,7 +145,7 @@ class setpoint_raw:
             pos.twist.linear.y = 0.0 # north
             pos.twist.linear.z = 0.0 # up
 
-            pos.twist.angular.x = 0.0
+            pos.twist.angular.x = 0.08
             pos.twist.angular.y = 0.0
             pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
@@ -156,7 +156,7 @@ class setpoint_raw:
             pos.twist.linear.z = 0.0 # up
 
             pos.twist.angular.x = 0.0
-            pos.twist.angular.y = 0.0
+            pos.twist.angular.y = 0.08
             pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
 
@@ -166,7 +166,7 @@ class setpoint_raw:
             pos.twist.linear.z = 0.0 # up
 
             pos.twist.angular.x = 0.0
-            pos.twist.angular.y = 0.0
+            pos.twist.angular.y = -0.08
             pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
         else:
