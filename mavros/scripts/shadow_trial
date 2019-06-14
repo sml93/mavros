@@ -115,27 +115,27 @@ class Straight_Inspection:
         pos.header = Header()
         pos.header.frame_id = "local_origin (velocity_setpoints)"
 
-        if self.sensor_0 >= 2.0 and abs(self.sensor_270 - self.sensor_90) >= 0.35:
-            pos.twist.linear.x = 0.05 # east
-            pos.twist.linear.y = 0.05 # north
-            pos.twist.linear.z = 0.0 # up
+        # if self.sensor_0 >= 2.0 and abs(self.sensor_270 - self.sensor_90) >= 0.35:
+        #     pos.twist.linear.x = 0.05 # east
+        #     pos.twist.linear.y = 0.05 # north
+        #     pos.twist.linear.z = 0.0 # up
 
-            pos.twist.angular.x = 0.08
-            pos.twist.angular.y = 0.08
-            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
-
-
-        elif self.sensor_0 >= 2.0 and abs(self.sensor_90 - self.sensor_270) >= 0.35:
-            pos.twist.linear.x = 0.05 # east
-            pos.twist.linear.y = -0.05 # north
-            pos.twist.linear.z = 0.0 # up
-
-            pos.twist.angular.x = 0.08
-            pos.twist.angular.y = -0.08
-            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+        #     pos.twist.angular.x = 0.08
+        #     pos.twist.angular.y = 0.08
+        #     pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
 
-        elif self.sensor_0 >= 2.0:
+        # elif self.sensor_0 >= 2.0 and abs(self.sensor_90 - self.sensor_270) >= 0.35:
+        #     pos.twist.linear.x = 0.05 # east
+        #     pos.twist.linear.y = -0.05 # north
+        #     pos.twist.linear.z = 0.0 # up
+
+        #     pos.twist.angular.x = 0.08
+        #     pos.twist.angular.y = -0.08
+        #     pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+
+
+        if self.sensor_0 >= 2.0:
             pos.twist.linear.x = 0.05 # east
             pos.twist.linear.y = 0.0 # north
             pos.twist.linear.z = 0.0 # up
@@ -145,34 +145,34 @@ class Straight_Inspection:
             pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
 
-        elif self.sensor_0 <= 1.0:
-            pos.twist.linear.x = -0.05 # east
-            pos.twist.linear.y = 0.0 # north
-            pos.twist.linear.z = 0.0 # up
+        # elif self.sensor_0 <= 1.0:
+        #     pos.twist.linear.x = -0.05 # east
+        #     pos.twist.linear.y = 0.0 # north
+        #     pos.twist.linear.z = 0.0 # up
 
-            pos.twist.angular.x = -0.08
-            pos.twist.angular.y = 0.0
-            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
-
-
-        elif abs(self.sensor_270 - self.sensor_90) >= 0.35:
-            pos.twist.linear.x = 0.0 # east
-            pos.twist.linear.y = 0.05 # north
-            pos.twist.linear.z = 0.0 # up
-
-            pos.twist.angular.x = 0.0
-            pos.twist.angular.y = 0.08
-            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+        #     pos.twist.angular.x = -0.08
+        #     pos.twist.angular.y = 0.0
+        #     pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
 
-        elif abs(self.sensor_90 - self.sensor_270) >= 0.35:
-            pos.twist.linear.x = 0.0 # east
-            pos.twist.linear.y = -0.05 # north
-            pos.twist.linear.z = 0.0 # up
+        # elif abs(self.sensor_270 - self.sensor_90) >= 0.35:
+        #     pos.twist.linear.x = 0.0 # east
+        #     pos.twist.linear.y = 0.05 # north
+        #     pos.twist.linear.z = 0.0 # up
 
-            pos.twist.angular.x = 0.0
-            pos.twist.angular.y = -0.08
-            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+        #     pos.twist.angular.x = 0.0
+        #     pos.twist.angular.y = 0.08
+        #     pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+
+
+        # elif abs(self.sensor_90 - self.sensor_270) >= 0.35:
+        #     pos.twist.linear.x = 0.0 # east
+        #     pos.twist.linear.y = -0.05 # north
+        #     pos.twist.linear.z = 0.0 # up
+
+        #     pos.twist.angular.x = 0.0
+        #     pos.twist.angular.y = -0.08
+        #     pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
         else:
             pos.twist.linear.x = 0.0
