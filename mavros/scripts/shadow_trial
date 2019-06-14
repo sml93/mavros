@@ -136,11 +136,11 @@ class Straight_Inspection:
 
 
         if self.sensor_0 >= 2.0:
-            pos.twist.linear.x = 0.05 # east
+            pos.twist.linear.x = 0.1 # east
             pos.twist.linear.y = 0.0 # north
             pos.twist.linear.z = 0.0 # up
 
-            pos.twist.angular.x = 0.08
+            pos.twist.angular.x = 0.5
             pos.twist.angular.y = 0.0
             pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
