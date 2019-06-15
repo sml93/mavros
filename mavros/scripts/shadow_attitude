@@ -79,6 +79,7 @@ class setpoint_raw:
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
             #self.fly() 
             print "0:", self.sensor_0.range, "90:", self.sensor_90.range, "180:", self.sensor_180.range, "270:", self.sensor_270.range
+            self.throttle()
             self.vel()
             self.rate.sleep()
 
@@ -210,11 +211,11 @@ class setpoint_raw:
         t.header = Header()
         t.header.frame_id = "thrust"
         # p_control
-        actual_z = self.local_position.pose.position.z
-        error = self.z - actual_z
-        kp = 0.1
+        #actual_z = self.local_position.pose.position.z
+        #error = self.z - actual_z
+        #kp = 0.1
 
-        t.thrust = 0.6 + (kp * error)
+        t.thrust = 0.3 # + (kp * error)
         t.header.stamp = rospy.Time.now()
         self.pub_thr.publish(t)
 

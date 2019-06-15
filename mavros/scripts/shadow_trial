@@ -46,7 +46,10 @@ class Straight_Inspection:
     """
     This class sends position targets to FCU's position controller
     """
-    def __init__(self): 
+    def __init__(self):
+        self.x = 0.0
+        self.y = 0.0
+        self.z = 0.0 
         self.armed = False  
         self.collective = RangeArray()
         self.sensor_0 = 0.0
@@ -54,7 +57,7 @@ class Straight_Inspection:
         self.sensor_90 = 0.0
         self.sensor_270 = 0.0 
         self.timeout = 180
-        self.rate = rospy.Rate(10) # 10hz is the original 
+        self.rate = rospy.Rate(20) # 10hz is the original 
         self.local_position = PoseStamped() 
         self.count = 0
         self.counter = 0
@@ -65,7 +68,6 @@ class Straight_Inspection:
         rospy.Subscriber("hub_1/ranges_raw", RangeArray, self.hub_callback)
         rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
         self.pub_vel = rospy.Publisher('mavros/setpoint_velocity/cmd_vel', TwistStamped, queue_size=10)
-        self.pub_thr = rospy.Publisher('mavros/setpoint_attitude/thrust', Thrust, queue_size=10)
         self.pub_pos = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=1)
 
         #rospy.wait_for_service('mavros/cmd/command', 30)
@@ -74,7 +76,7 @@ class Straight_Inspection:
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
             
             print "0:", self.sensor_0, "90:", self.sensor_90, "180:", self.sensor_180, "270:", self.sensor_270
-            self.vel()
+            self.fly()
             self.rate.sleep()
 
 
@@ -185,7 +187,27 @@ class Straight_Inspection:
     
         # update timestamp for each published SP
         pos.header.stamp = rospy.Time.now()
-        self.pub_vel.publish(pos)      
+        self.pub_vel.publish(pos)     
+
+
+
+    def fly(self):
+        # either u do the below or u need to use bitmasking for uint16, jus basically add the uint16 numbers found in mavros documentation
+        pos = PositionTarget(coordinate_frame = PositionTarget.FRAME_LOCAL_NED, # (originally) Local coordinate frame, Z-up (x: north, y: east, z: down), somehow it transformed to ENU (x: east, y: north, z: up)
+                             type_mask=
+                             PositionTarget.IGNORE_VX + PositionTarget.IGNORE_VY + PositionTarget.IGNORE_VZ +
+                             PositionTarget.IGNORE_AFX + PositionTarget.IGNORE_AFY + PositionTarget.IGNORE_AFZ + PositionTarget.IGNORE_YAW
+                             PositionTarget.IGNORE_YAW_RATE
+                             )
+
+        pos.header.frame_id = "fly"  
+        pos.position.x = self.x
+        pos.position.y = self.y
+        pos.position.z = self.z
+        # pos.yaw = radians(90.0) # True North
+
+        pos.header.stamp = rospy.Time.now()
+        self.pub_pos.publish(pos) 
     
 
 if __name__ == '__main__':
