@@ -37,7 +37,7 @@ from std_msgs.msg import Float64, Float32 #type from msg generation
 from geometry_msgs.msg import PoseStamped, Quaternion, TwistStamped #geometry
 from tf.transformations import quaternion_from_euler #transformation
 from mavros_msgs.srv import CommandLong #service_class
-from mavros_msgs.msg import PositionTarget,Thrust
+from mavros_msgs.msg import PositionTarget,Thrust,AttitudeTarget
 from sensor_msgs.msg import NavSatFix,Range #type
 
 
@@ -46,16 +46,16 @@ class setpoint_raw:
     This class sends position targets to FCU's position controller
     """
     def __init__(self):
-        self.x = 3.0
-        self.y = 4.0
-        self.z = 1.0   
+        self.x = 0.0
+        self.y = 3.0
+        self.z = 1.5   
         self.armed = False  
         self.sensor_0 = Range()
         self.sensor_270 = Range()
         self.sensor_90 = Range()
         self.sensor_180 = Range() #very impt, must initialise as Range()
         self.timeout = 180
-        self.rate = rospy.Rate(10) # 10hz is the original 
+        self.rate = rospy.Rate(30) # 10hz is the original 
         self.local_position = PoseStamped() 
         self.count = 0
         self.counter = 0
@@ -71,16 +71,17 @@ class setpoint_raw:
         rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
         self.pub_vel = rospy.Publisher('mavros/setpoint_velocity/cmd_vel', TwistStamped, queue_size=10)
         self.pub_thr = rospy.Publisher('mavros/setpoint_attitude/thrust', Thrust, queue_size=10)
-        self.pub_pos = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=1)
-
+        self.pub_pos = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=10)
+        self.pub_att = rospy.Publisher('mavros/setpoint_raw/attitude', AttitudeTarget, queue_size=10)
+        
         # rospy.wait_for_service('mavros/cmd/command', 30)
         # self._srv_cmd_long = rospy.ServiceProxy('mavros/cmd/command', CommandLong, persistent=True)
       
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
             #self.fly() 
             print "0:", self.sensor_0.range, "90:", self.sensor_90.range, "180:", self.sensor_180.range, "270:", self.sensor_270.range
-            self.throttle()
-            self.vel()
+            self.vel() # this alone with all twist angular == 0.0 gives good altitude and navigation in gazebo
+            #self.att_ctrl()
             self.rate.sleep()
 
     def range_0(self,data):
@@ -116,7 +117,7 @@ class setpoint_raw:
             self.count = self.count + 1
             self.rate.sleep() # The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
 
-    def vel(self): # can afford to add in 90 and -90 deg sensors for centering later on 
+    def vel(self): # can afford to add in 90 and -90 deg sensors for centering later on, ENU frame by default
         pos = TwistStamped()
         pos.header = Header()
         pos.header.frame_id = "local_origin (velocity_setpoints)"
@@ -126,8 +127,8 @@ class setpoint_raw:
             pos.twist.linear.y = 0.05 # north
             pos.twist.linear.z = 0.0 # up
 
-            pos.twist.angular.x = 0.08
-            pos.twist.angular.y = 0.08
+            pos.twist.angular.x = 0.0 # seems like putting this to 0.0 doesnt make the drone bounce, previously @ 0.08, it bounced!
+            pos.twist.angular.y = 0.0
             pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
 
@@ -136,8 +137,8 @@ class setpoint_raw:
             pos.twist.linear.y = -0.05 # north
             pos.twist.linear.z = 0.0 # up
 
-            pos.twist.angular.x = 0.08
-            pos.twist.angular.y = -0.08
+            pos.twist.angular.x = 0.0
+            pos.twist.angular.y = 0.0
             pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
 
@@ -146,7 +147,7 @@ class setpoint_raw:
             pos.twist.linear.y = 0.0 # north
             pos.twist.linear.z = 0.0 # up
 
-            pos.twist.angular.x = 0.08
+            pos.twist.angular.x = 0.0
             pos.twist.angular.y = 0.0
             pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
@@ -157,7 +158,7 @@ class setpoint_raw:
             pos.twist.linear.z = 0.0 # up
 
             pos.twist.angular.x = 0.0
-            pos.twist.angular.y = 0.08
+            pos.twist.angular.y = 0.0
             pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
 
@@ -167,7 +168,7 @@ class setpoint_raw:
             pos.twist.linear.z = 0.0 # up
 
             pos.twist.angular.x = 0.0
-            pos.twist.angular.y = -0.08
+            pos.twist.angular.y = 0.0
             pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
         else:
@@ -187,20 +188,23 @@ class setpoint_raw:
 # y direction faces north 
 # yaw angle look from bottom up, its clockwise ninety, the blue props are front 
 
+# if jus using pos.position.z, drone defective in flying, keeps bouncing up and down, cannot trust position target!
+
     def fly(self):
         # either u do the below or u need to use bitmasking for uint16, jus basically add the uint16 numbers found in mavros documentation
         pos = PositionTarget(coordinate_frame = PositionTarget.FRAME_LOCAL_NED, # (originally) Local coordinate frame, Z-up (x: north, y: east, z: down), somehow it transformed to ENU (x: east, y: north, z: up)
                              type_mask=
+                             PositionTarget.IGNORE_PX + PositionTarget.IGNORE_PY + 
                              PositionTarget.IGNORE_VX + PositionTarget.IGNORE_VY + PositionTarget.IGNORE_VZ +
                              PositionTarget.IGNORE_AFX + PositionTarget.IGNORE_AFY + PositionTarget.IGNORE_AFZ + 
                              PositionTarget.IGNORE_YAW_RATE
                              )
 
         pos.header.frame_id = "fly"  
-        pos.position.x = self.x
-        pos.position.y = self.y
+        #pos.position.x = self.x
+        #pos.position.y = self.y
         pos.position.z = self.z
-        pos.yaw = radians(90.0) # True North
+        pos.yaw = radians(0.0) # True North
 
         pos.header.stamp = rospy.Time.now()
         self.pub_pos.publish(pos)
@@ -218,6 +222,22 @@ class setpoint_raw:
         t.thrust = 0.3 # + (kp * error)
         t.header.stamp = rospy.Time.now()
         self.pub_thr.publish(t)
+
+
+    def att_ctrl(self):
+        att = AttitudeTarget(type_mask =
+                             AttitudeTarget.IGNORE_ROLL_RATE + AttitudeTarget.IGNORE_PITCH_RATE + 
+                             AttitudeTarget.IGNORE_YAW_RATE +
+                             AttitudeTarget.IGNORE_ATTITUDE
+                             )
+
+        att.header.frame_id = "att_ctrl" 
+        #att.body_rate.x = 0.0
+        #att.body_rate.y = 0.0
+        att.thrust = 0.614 # can be used to control motor speed, but this configuration when combined with cmd_velocity caused the drone to flip and crash
+
+        att.header.stamp = rospy.Time.now()
+        self.pub_att.publish(att)
 
 
 if __name__ == '__main__':
