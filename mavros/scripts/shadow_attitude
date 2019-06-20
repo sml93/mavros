@@ -49,18 +49,19 @@ class setpoint_raw:
         self.x = 0.0
         self.y = 3.0
         self.z = 1.5   
-        self.armed = False  
+        self.armed = False 
+        self.altimeter = Range() 
         self.sensor_0 = Range()
         self.sensor_270 = Range()
         self.sensor_90 = Range()
         self.sensor_180 = Range() #very impt, must initialise as Range()
         self.timeout = 180
-        self.rate = rospy.Rate(30) # 10hz is the original 
+        self.rate = rospy.Rate(50) # 10hz is the original 
         self.local_position = PoseStamped() 
         self.count = 0
         self.counter = 0
 
-        # rospy.wait_for_service('mavros/cmd/arming', 30) # wait for arming, queue for 30s
+        rospy.wait_for_service('mavros/cmd/arming', 30) # wait for arming, queue for 30s
 
         # rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
 
@@ -68,19 +69,23 @@ class setpoint_raw:
         rospy.Subscriber("gazebo/range_270", Range, self.range_270)
         rospy.Subscriber("gazebo/range_90", Range, self.range_90)
         rospy.Subscriber("gazebo/range_180", Range, self.range_180)
+        rospy.Subscriber("distance_sensor", Range, self.altitude)
         rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
         self.pub_vel = rospy.Publisher('mavros/setpoint_velocity/cmd_vel', TwistStamped, queue_size=10)
         self.pub_thr = rospy.Publisher('mavros/setpoint_attitude/thrust', Thrust, queue_size=10)
         self.pub_pos = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=10)
         self.pub_att = rospy.Publisher('mavros/setpoint_raw/attitude', AttitudeTarget, queue_size=10)
         
-        # rospy.wait_for_service('mavros/cmd/command', 30)
-        # self._srv_cmd_long = rospy.ServiceProxy('mavros/cmd/command', CommandLong, persistent=True)
+        rospy.wait_for_service('mavros/cmd/command', 30)
+        self._srv_cmd_long = rospy.ServiceProxy('mavros/cmd/command', CommandLong, persistent=True)
       
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
-            #self.fly() 
-            print "0:", self.sensor_0.range, "90:", self.sensor_90.range, "180:", self.sensor_180.range, "270:", self.sensor_270.range
+            #self.arm() 
+            print "0:", self.sensor_0.range, "90:", self.sensor_90.range, "180:", self.sensor_180.range, "270:", self.sensor_270.range, "altitude: ", abs(self.local_position.pose.position.z) 
+          
+            self.height_adjustment()
             self.vel() # this alone with all twist angular == 0.0 gives good altitude and navigation in gazebo
+           
             #self.att_ctrl()
             self.rate.sleep()
 
@@ -95,6 +100,9 @@ class setpoint_raw:
 
     def range_180(self,data):
         self.sensor_180 = data 
+
+    def altitude(self,data):
+        self.altimeter = data     
 
     def position_callback(self, data): # callback invoked with the message as the first arg
         self.local_position = data 
@@ -117,12 +125,51 @@ class setpoint_raw:
             self.count = self.count + 1
             self.rate.sleep() # The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
 
+    
+    def height_adjustment(self): # can afford to add in 90 and -90 deg sensors for centering later on, ENU frame by default
+        pos = TwistStamped()
+        pos.header = Header()
+        pos.header.frame_id = "local_origin (velocity_setpoints)"
+
+        if abs(self.local_position.pose.position.z) < 1.1:
+            pos.twist.linear.x = 0.0 # east
+            pos.twist.linear.y = 0.0 # north
+            pos.twist.linear.z = 0.03 # up
+
+            pos.twist.angular.x = 0.0 # seems like putting this to 0.0 doesnt make the drone bounce, previously @ 0.08, it bounced!
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+            print "low"
+
+        if abs(self.local_position.pose.position.z) > 1.5:
+            pos.twist.linear.x = 0.0 # east
+            pos.twist.linear.y = 0.0 # north
+            pos.twist.linear.z = -0.03 # up
+
+            pos.twist.angular.x = 0.0 # seems like putting this to 0.0 doesnt make the drone bounce, previously @ 0.08, it bounced!
+            pos.twist.angular.y = 0.0
+            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+            print "high"
+
+        # else:
+        #     pos.twist.linear.x = 0.0 # east
+        #     pos.twist.linear.y = 0.0 # north
+        #     pos.twist.linear.z = 0.0 # up
+
+        #     pos.twist.angular.x = 0.0 # seems like putting this to 0.0 doesnt make the drone bounce, previously @ 0.08, it bounced!
+        #     pos.twist.angular.y = 0.0
+        #     pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+
+        pos.header.stamp = rospy.Time.now()
+        self.pub_vel.publish(pos)
+
+
     def vel(self): # can afford to add in 90 and -90 deg sensors for centering later on, ENU frame by default
         pos = TwistStamped()
         pos.header = Header()
         pos.header.frame_id = "local_origin (velocity_setpoints)"
 
-        if self.sensor_0.range >= 3.2 and self.sensor_270.range - self.sensor_90.range >= 0.2:
+        if self.sensor_0.range >= 3.2 and self.sensor_270.range >= 3.0:
             pos.twist.linear.x = 0.05 # east
             pos.twist.linear.y = 0.05 # north
             pos.twist.linear.z = 0.0 # up
@@ -132,9 +179,9 @@ class setpoint_raw:
             pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
 
-        elif self.sensor_0.range >= 3.2 and self.sensor_90.range - self.sensor_270.range >= 0.2:
-            pos.twist.linear.x = 0.05 # east
-            pos.twist.linear.y = -0.05 # north
+        elif self.sensor_0.range >= 3.2 and self.sensor_270.range <= 2.5:
+            pos.twist.linear.x = 0.0 # east
+            pos.twist.linear.y = -0.01 # north
             pos.twist.linear.z = 0.0 # up
 
             pos.twist.angular.x = 0.0
@@ -152,24 +199,34 @@ class setpoint_raw:
             pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
 
-        elif self.sensor_270.range - self.sensor_90.range >= 0.2:
-            pos.twist.linear.x = 0.0 # east
-            pos.twist.linear.y = 0.05 # north
-            pos.twist.linear.z = 0.0 # up
+        # elif self.sensor_0.range < 3.2 and self.sensor_0.range > 2.5:
+        #     pos.twist.linear.x = 0.0 # east
+        #     pos.twist.linear.y = 0.05 # north
+        #     pos.twist.linear.z = 0.0 # up
 
-            pos.twist.angular.x = 0.0
-            pos.twist.angular.y = 0.0
-            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+        #     pos.twist.angular.x = 0.0
+        #     pos.twist.angular.y = 0.0
+        #     pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+    
+
+        # elif self.sensor_0.range < 2.5:
+        #     pos.twist.linear.x = -0.05 # east
+        #     pos.twist.linear.y = 0.0 # north
+        #     pos.twist.linear.z = 0.0 # up
+
+        #     pos.twist.angular.x = 0.0
+        #     pos.twist.angular.y = 0.0
+        #     pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
 
-        elif self.sensor_90.range - self.sensor_270.range >= 0.2:
-            pos.twist.linear.x = 0.0 # east
-            pos.twist.linear.y = -0.05 # north
-            pos.twist.linear.z = 0.0 # up
+        # elif self.sensor_90.range < 3.2:
+        #     pos.twist.linear.x = 0.0 # east
+        #     pos.twist.linear.y = -0.05 # north
+        #     pos.twist.linear.z = 0.0 # up
 
-            pos.twist.angular.x = 0.0
-            pos.twist.angular.y = 0.0
-            pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
+        #     pos.twist.angular.x = 0.0
+        #     pos.twist.angular.y = 0.0
+        #     pos.twist.angular.z = 0.0 # angular velocity in z axis, basically will cause the drone to swirl about z axis.
 
         else:
             pos.twist.linear.x = 0.0
