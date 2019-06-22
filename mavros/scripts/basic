@@ -245,7 +245,7 @@ class SetpointPosition:
 
         self.pub_att.publish(att)
         #self.helper.bag_write('mavros/setpoint_attitude/attitude', att)
-        self.pub_thr.publish(throttle)
+        self.pub_thr.publish(throttle)#lolol
         #self.helper.bag_write('mavros/setpoint_attitude/att_throttle', throttle)
 
 if __name__ == '__main__':

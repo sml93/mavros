@@ -83,8 +83,8 @@ class setpoint_raw:
             #self.arm() 
             print "0:", self.sensor_0.range, "90:", self.sensor_90.range, "180:", self.sensor_180.range, "270:", self.sensor_270.range, "altitude: ", abs(self.local_position.pose.position.z) 
           
-            self.height_adjustment()
-            self.vel() # this alone with all twist angular == 0.0 gives good altitude and navigation in gazebo
+            #self.height_adjustment()
+            self.fly() # this alone with all twist angular == 0.0 gives good altitude and navigation in gazebo
            
             #self.att_ctrl()
             self.rate.sleep()
@@ -249,19 +249,28 @@ class setpoint_raw:
 
     def fly(self):
         # either u do the below or u need to use bitmasking for uint16, jus basically add the uint16 numbers found in mavros documentation
-        pos = PositionTarget(coordinate_frame = PositionTarget.FRAME_LOCAL_NED, # (originally) Local coordinate frame, Z-up (x: north, y: east, z: down), somehow it transformed to ENU (x: east, y: north, z: up)
+        pos = PositionTarget(coordinate_frame = PositionTarget.FRAME_BODY_NED, # (originally) Local coordinate frame, Z-up (x: north, y: east, z: down), somehow it transformed to ENU (x: east, y: north, z: up)
                              type_mask=
-                             PositionTarget.IGNORE_PX + PositionTarget.IGNORE_PY + 
-                             PositionTarget.IGNORE_VX + PositionTarget.IGNORE_VY + PositionTarget.IGNORE_VZ +
+                             PositionTarget.IGNORE_PX + PositionTarget.IGNORE_PY + PositionTarget.IGNORE_PZ +
+                             #PositionTarget.IGNORE_VX + PositionTarget.IGNORE_VY + PositionTarget.IGNORE_VZ +
                              PositionTarget.IGNORE_AFX + PositionTarget.IGNORE_AFY + PositionTarget.IGNORE_AFZ + 
-                             PositionTarget.IGNORE_YAW_RATE
+                             PositionTarget.IGNORE_YAW_RATE + PositionTarget.IGNORE_YAW
                              )
 
         pos.header.frame_id = "fly"  
         #pos.position.x = self.x
         #pos.position.y = self.y
-        pos.position.z = self.z
-        pos.yaw = radians(0.0) # True North
+        pos.velocity.x = 0.0 # against north (+), north(-)
+        pos.velocity.y = -0.05 # east(+), against east(-)
+        #pos.velocity.z = 0.0
+
+        if abs(self.local_position.pose.position.z) < 0.9:
+            pos.velocity.z = 0.03
+
+        elif abs(self.local_position.pose.position.z) > 1.5:
+            pos.velocity.z = -0.03
+
+        #pos.yaw = radians(0.0) # True North
 
         pos.header.stamp = rospy.Time.now()
         self.pub_pos.publish(pos)

@@ -58,7 +58,7 @@ class Straight_Inspection:
         self.sensor_270 = 0.0 
         self.altimeter = Range() 
         self.timeout = 180
-        self.rate = rospy.Rate(30) # 10hz is the original 
+        self.rate = rospy.Rate(50) # 10hz is the original 
         self.local_position = PoseStamped() 
         self.count = 0
         self.counter = 0
