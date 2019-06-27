@@ -222,10 +222,16 @@ class Straight_Inspection:
                              PositionTarget.IGNORE_YAW_RATE + PositionTarget.IGNORE_YAW
                              )
 
-        pos.header.frame_id = "fly"  
-        pos.velocity.x = 0.05 # against north (+), north(-)
-        pos.velocity.y = 0.0 # east(+), against east(-)
-        #pos.velocity.z = 0.0
+        pos.header.frame_id = "fly" 
+
+
+        if self.sensor_90 >= 2.5:
+            pos.velocity.x = 0.05 # against north (+), north(-)
+            pos.velocity.y = 0.0 # east(+), against east(-)
+        else:
+            pos.velocity.x = 0.0 # against north (+), north(-)
+            pos.velocity.y = 0.0 
+
         if abs(self.local_position.pose.position.z) < 0.9:
             pos.velocity.z = 0.03
 

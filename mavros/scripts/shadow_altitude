@@ -218,21 +218,21 @@ class Straight_Inspection:
                              type_mask=
                              PositionTarget.IGNORE_PX + PositionTarget.IGNORE_PY + PositionTarget.IGNORE_PZ +
                              # PositionTarget.IGNORE_VX + PositionTarget.IGNORE_VY + PositionTarget.IGNORE_VZ +
-                             PositionTarget.IGNORE_AFX + PositionTarget.IGNORE_AFY + PositionTarget.IGNORE_AFZ + PositionTarget.IGNORE_YAW +
+                             PositionTarget.IGNORE_AFX + PositionTarget.IGNORE_AFY + PositionTarget.IGNORE_AFZ + #PositionTarget.IGNORE_YAW +
                              PositionTarget.IGNORE_YAW_RATE
                              )
 
         pos.header.frame_id = "fly"  
         pos.velocity.x = 0.0 # against north (+), north(-)
-        pos.velocity.y = 0.05 # east(+), against east(-)
+        pos.velocity.y = -0.05 # east(+), against east(-)
 
-        if abs(self.local_position.pose.position.z) < 0.9:
+        if abs(self.local_position.pose.position.z) <= 1.1:
             pos.velocity.z = 0.02
 
-        elif abs(self.local_position.pose.position.z) > 1.5:
+        elif abs(self.local_position.pose.position.z) > 1.2:
             pos.velocity.z = -0.02
 
-        # pos.yaw = radians(90.0) # True North
+        pos.yaw = radians(0.0) # True North = 90.0
 
         pos.header.stamp = rospy.Time.now()
         self.pub_pos.publish(pos) 

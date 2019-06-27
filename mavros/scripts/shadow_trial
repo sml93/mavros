@@ -49,7 +49,7 @@ class Straight_Inspection:
     def __init__(self):
         self.x = 0.0
         self.y = 0.0
-        self.z = 0.0 
+        self.z = 0.9 
         self.armed = False  
         self.collective = RangeArray()
         self.sensor_0 = 0.0
@@ -78,8 +78,8 @@ class Straight_Inspection:
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
             
             print "0:", self.sensor_0, "90:", self.sensor_90, "180:", self.sensor_180, "270:", self.sensor_270, "altimeter: ", abs(self.local_position.pose.position.z)
-            self.height_adjustment()
-            self.vel() # this alone with all twist angular == 0.0 gives good altitude and navigation in gazebo
+    
+            self.fly() # this alone with all twist angular == 0.0 gives good altitude and navigation in gazebo
             self.rate.sleep()
 
 
@@ -207,19 +207,70 @@ class Straight_Inspection:
         # either u do the below or u need to use bitmasking for uint16, jus basically add the uint16 numbers found in mavros documentation
         pos = PositionTarget(coordinate_frame = PositionTarget.FRAME_LOCAL_NED, # (originally) Local coordinate frame, Z-up (x: north, y: east, z: down), somehow it transformed to ENU (x: east, y: north, z: up)
                              type_mask=
+                             #PositionTarget.IGNORE_PX + PositionTarget.IGNORE_PY + PositionTarget.IGNORE_PZ +
                              PositionTarget.IGNORE_VX + PositionTarget.IGNORE_VY + PositionTarget.IGNORE_VZ +
-                             PositionTarget.IGNORE_AFX + PositionTarget.IGNORE_AFY + PositionTarget.IGNORE_AFZ + PositionTarget.IGNORE_YAW +
-                             PositionTarget.IGNORE_YAW_RATE
+                             PositionTarget.IGNORE_AFX + PositionTarget.IGNORE_AFY + PositionTarget.IGNORE_AFZ + 
+                             PositionTarget.IGNORE_YAW_RATE #+ PositionTarget.IGNORE_YAW
                              )
 
         pos.header.frame_id = "fly"  
-        pos.position.x = self.x
-        pos.position.y = self.y
-        pos.position.z = self.z
-        # pos.yaw = radians(90.0) # True North
+        
+        #pos.velocity.x = 0.008 # against north (+), north(-)
+        #pos.velocity.y = 0.05 # east(+), against east(-)
+        #pos.velocity.z = 0.0
+
+        #pos.acceleration_or_force.z = 0.05
+
+        # if abs(self.local_position.pose.position.z) <= 1.1:
+        #     pos.velocity.z = 0.5
+
+        # elif abs(self.local_position.pose.position.z) > 1.3:
+        #     pos.velocity.z = -0.022
+
+        pos.yaw = radians(3.0) # True North
+
+
+        
+        if self.sensor_0 >= 2.0:
+            pos.position.x = self.local_position.pose.position.x + 0.08
+            pos.position.y = self.local_position.pose.position.y
+            pos.position.z = self.z 
+
+        elif self.sensor_0 < 1.5:
+            pos.position.x = self.local_position.pose.position.x - 0.08
+            pos.position.y = self.local_position.pose.position.y 
+            pos.position.z = self.z 
+
+        else:
+            pos.position.x = self.local_position.pose.position.x 
+            pos.position.y = self.local_position.pose.position.y 
+            pos.position.z = self.z 
+         
+
+
+        # if self.sensor_0.range >= 3.2:
+        #     pos.position.x = self.local_position.pose.position.x + 0.1
+        #     pos.position.y = self.local_position.pose.position.y
+        #     pos.position.z = self.z 
+
+        # elif self.sensor_0.range < 3.2:
+        #     pos.position.x = self.local_position.pose.position.x 
+        #     pos.position.y = self.local_position.pose.position.y - 0.1
+        #     pos.position.z = self.z 
+         
+        # if self.sensor_270.range >= 2.0 and self.sensor_0.range >= 3.2:
+        #     pos.position.x = self.local_position.pose.position.x 
+        #     pos.position.y = self.local_position.pose.position.y + 0.01
+        #     pos.position.z = self.z 
+
+        # if self.sensor_270.range < 1.0 and self.sensor_0.range >= 3.2:
+        #     pos.position.x = self.local_position.pose.position.x 
+        #     pos.position.y = self.local_position.pose.position.y - 0.01
+        #     pos.position.z = self.z 
+
 
         pos.header.stamp = rospy.Time.now()
-        self.pub_pos.publish(pos) 
+        self.pub_pos.publish(pos)
     
 
 if __name__ == '__main__':

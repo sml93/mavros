@@ -47,9 +47,7 @@ class Straight_Inspection:
     This class sends position targets to FCU's position controller
     """
     def __init__(self):
-        self.x = 0.0
-        self.y = 0.0
-        self.z = 0.0 
+        self.z = 0.9 
         self.armed = False  
         self.collective = RangeArray()
         self.sensor_0 = 0.0
@@ -69,6 +67,7 @@ class Straight_Inspection:
         rospy.Subscriber("hub_1/ranges_raw", RangeArray, self.hub_callback)
         rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
         rospy.Subscriber("mavros/distance_sensor/hrlv_ez4_pub", Range, self.altitude)
+        self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
         self.pub_vel = rospy.Publisher('mavros/setpoint_velocity/cmd_vel', TwistStamped, queue_size=10)
         self.pub_pos = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=1)
 
@@ -213,23 +212,71 @@ class Straight_Inspection:
 
 
     def fly(self):
-        # either u do the below or u need to use bitmasking for uint16, jus basically add the uint16 numbers found in mavros documentation
-        pos = PositionTarget(coordinate_frame = PositionTarget.FRAME_L_NED, # (originally) Local coordinate frame, Z-up (x: north, y: east, z: down), somehow it transformed to ENU (x: east, y: north, z: up)
-                             type_mask=
-                             PositionTarget.IGNORE_PX + PositionTarget.IGNORE_PY + PositionTarget.IGNORE_PZ +
-                             # PositionTarget.IGNORE_VX + PositionTarget.IGNORE_VY + PositionTarget.IGNORE_VZ +
-                             PositionTarget.IGNORE_AFX + PositionTarget.IGNORE_AFY + PositionTarget.IGNORE_AFZ + PositionTarget.IGNORE_YAW +
-                             PositionTarget.IGNORE_YAW_RATE + PositionTarget.IGNORE_YAW
-                             )
+        
+        # Initialise necessary headers
+        pos = PoseStamped()
+        pos.header = Header()
+        pos.header.frame_id = "fly"
+        pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
 
-        pos.header.frame_id = "fly"  
-        pos.velocity.x = -0.1 # north
-        pos.velocity.y = 0.0
-        pos.velocity.z = 0.0
-        # pos.yaw = radians(90.0) # True North
+        if self.sensor_0 >= 2.0:
+            # Establish desired setpoints
+            pos.pose.position.x = self.local_position.pose.position.x + 0.08
+            pos.pose.position.y = self.local_position.pose.position.y
+            pos.pose.position.z = self.z
+
+            # Establish desired orientation at setpoint
+            roll_degrees = 0.0 
+            roll = radians(roll_degrees)
+            pitch_degrees = 0.0 
+            pitch = radians(pitch_degrees)
+            yaw_degrees = 3.0 
+            yaw = radians(yaw_degrees)
+
+            # Execute desired orientation
+            quaternion = quaternion_from_euler(roll, pitch, yaw)
+            pos.pose.orientation = Quaternion(*quaternion)
+
+
+        elif self.sensor_0 < 1.5:
+            # Establish desired setpoints
+            pos.pose.position.x = self.local_position.pose.position.x - 0.08
+            pos.pose.position.y = self.local_position.pose.position.y 
+            pos.pose.position.z = self.z
+
+            # Establish desired orientation at setpoint
+            roll_degrees = 0.0 
+            roll = radians(roll_degrees)
+            pitch_degrees = 0.0 
+            pitch = radians(pitch_degrees)
+            yaw_degrees = 3.0 
+            yaw = radians(yaw_degrees)
+
+            # Execute desired orientation
+            quaternion = quaternion_from_euler(roll, pitch, yaw)
+            pos.pose.orientation = Quaternion(*quaternion)
+            
+        else:
+            # Establish desired setpoints
+            pos.pose.position.x = self.local_position.pose.position.x 
+            pos.pose.position.y = self.local_position.pose.position.y 
+            pos.pose.position.z = self.z
+
+            # Establish desired orientation at setpoint
+            roll_degrees = 0.0 
+            roll = radians(roll_degrees)
+            pitch_degrees = 0.0 
+            pitch = radians(pitch_degrees)
+            yaw_degrees = 3.0 
+            yaw = radians(yaw_degrees)
+
+            # Execute desired orientation
+            quaternion = quaternion_from_euler(roll, pitch, yaw)
+            pos.pose.orientation = Quaternion(*quaternion)
 
         pos.header.stamp = rospy.Time.now()
-        self.pub_pos.publish(pos) 
+        self.pub_spt.publish(pos) 
+
     
 
 if __name__ == '__main__':
