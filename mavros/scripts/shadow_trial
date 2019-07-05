@@ -71,6 +71,7 @@ class Straight_Inspection:
         rospy.Subscriber("mavros/distance_sensor/hrlv_ez4_pub", Range, self.altitude)
         self.pub_vel = rospy.Publisher('mavros/setpoint_velocity/cmd_vel', TwistStamped, queue_size=10)
         self.pub_pos = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=1)
+        self.pub_vis = rospy.Publisher('mavros/vision_pose/pose', PoseStamped, queue_size=10)
 
         #rospy.wait_for_service('mavros/cmd/command', 30)
         #self._srv_cmd_long = rospy.ServiceProxy('mavros/cmd/command', CommandLong, persistent=True)
