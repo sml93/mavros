@@ -79,7 +79,8 @@ class Straight_Inspection:
             
             print "0:", self.sensor_0, "90:", self.sensor_90, "180:", self.sensor_180, "270:", self.sensor_270, "altimeter: ", abs(self.local_position.pose.position.z)
     
-            self.fly() # this alone with all twist angular == 0.0 gives good altitude and navigation in gazebo
+            self.fly3() # this alone with all twist angular == 0.0 gives good altitude and navigation in gazebo
+            self.estimator()
             self.rate.sleep()
 
 
@@ -271,6 +272,146 @@ class Straight_Inspection:
 
         pos.header.stamp = rospy.Time.now()
         self.pub_pos.publish(pos)
+
+
+    def fly3(self):
+        # either u do the below or u need to use bitmasking for uint16, jus basically add the uint16 numbers found in mavros documentation
+        pos = PositionTarget(coordinate_frame = PositionTarget.FRAME_BODY_NED, # (originally) Local coordinate frame, Z-up (x: north, y: east, z: down), somehow it transformed to ENU (x: east, y: north, z: up)
+                             type_mask=
+                             PositionTarget.IGNORE_PX + PositionTarget.IGNORE_PY + PositionTarget.IGNORE_PZ +
+                             #PositionTarget.IGNORE_VX + PositionTarget.IGNORE_VY + PositionTarget.IGNORE_VZ +
+                             PositionTarget.IGNORE_AFX + PositionTarget.IGNORE_AFY + PositionTarget.IGNORE_AFZ + 
+                             PositionTarget.IGNORE_YAW_RATE #+ PositionTarget.IGNORE_YAW
+                             )
+
+        pos.header.frame_id = "fly3"  
+        
+        if self.sensor_0 >= 1.5:
+            pos.velocity.x = 0.0 # against north (+), north(-), drone's west(+),east(-) 0.008
+            pos.velocity.y = 0.08 # east(+), against east(-) ,drone's front(+),back(-)
+
+            if abs(self.local_position.pose.position.z) <= 0.6:
+                pos.velocity.z = 0.015
+
+            elif abs(self.local_position.pose.position.z) > 0.8:
+                pos.velocity.z = -0.015
+
+            pos.yaw = radians(3.0) # True North
+
+
+        elif self.sensor_0 < 1.0:
+            pos.velocity.x = 0.0 # against north (+), north(-), drone's west(+),east(-) -0.008
+            pos.velocity.y = -0.08 # east(+), against east(-) ,drone's front(+),back(-)
+
+            if abs(self.local_position.pose.position.z) <= 0.6:
+                pos.velocity.z = 0.015
+
+            elif abs(self.local_position.pose.position.z) > 0.8:
+                pos.velocity.z = -0.015
+
+            pos.yaw = radians(3.0) # True North
+
+
+        else:
+            pos.velocity.x = 0.0 # against north (+), north(-), drone's west(+),east(-) -0.008
+            pos.velocity.y = 0.0 # east(+), against east(-) ,drone's front(+),back(-)
+
+            if abs(self.local_position.pose.position.z) <= 0.6:
+                pos.velocity.z = 0.015
+
+            elif abs(self.local_position.pose.position.z) > 0.8:
+                pos.velocity.z = -0.015
+
+            pos.yaw = radians(3.0) # True North
+
+         
+        # if self.sensor_0.range >= 3.2:
+        #     pos.position.x = self.local_position.pose.position.x + 0.1
+        #     pos.position.y = self.local_position.pose.position.y
+        #     pos.position.z = self.z 
+
+        # elif self.sensor_0.range < 3.2:
+        #     pos.position.x = self.local_position.pose.position.x 
+        #     pos.position.y = self.local_position.pose.position.y - 0.1
+        #     pos.position.z = self.z 
+         
+        # if self.sensor_270.range >= 2.0 and self.sensor_0.range >= 3.2:
+        #     pos.position.x = self.local_position.pose.position.x 
+        #     pos.position.y = self.local_position.pose.position.y + 0.01
+        #     pos.position.z = self.z 
+
+        # if self.sensor_270.range < 1.0 and self.sensor_0.range >= 3.2:
+        #     pos.position.x = self.local_position.pose.position.x 
+        #     pos.position.y = self.local_position.pose.position.y - 0.01
+        #     pos.position.z = self.z 
+
+
+        pos.header.stamp = rospy.Time.now()
+        self.pub_pos.publish(pos)
+
+
+    def estimator(self):
+
+        # Initialise necessary headers
+        pos = PoseStamped()
+        pos.header = Header()
+        pos.header.frame_id = "vision"
+
+        if abs(self.sensor_90 - self.sensor_270) <= 0.03 and abs(self.sensor_0 - self.sensor_180) <= 0.03:
+            # Establish desired setpoints
+            pos.pose.position.x = 0.0
+            pos.pose.position.y = 0.0 
+            #if self.altimeter.range == 30.0:
+            #    pos.pose.position.z = 0.0
+            #else:
+            #    pos.pose.position.z = self.altimeter.range
+
+
+            # Establish desired orientation at setpoint
+            # roll_degrees = 0.0 
+            # roll = radians(roll_degrees)
+            # pitch_degrees = 0.0 
+            # pitch = radians(pitch_degrees)
+            # yaw_degrees = 0.0 
+            # yaw = radians(yaw_degrees)
+
+            # # Execute desired orientation
+            # quaternion = quaternion_from_euler(roll, pitch, yaw)
+            # pos.pose.orientation = Quaternion(*quaternion)
+
+        else:
+            if self.sensor_0 - self.sensor_180 > 0.03:
+                pos.pose.position.x = -(self.sensor_0 - self.sensor_180) 
+
+            elif self.sensor_180 - self.sensor_0 > 0.03:
+                pos.pose.position.x = -(self.sensor_0 - self.sensor_180) 
+
+            if self.sensor_270 - self.sensor_90 > 0.03:
+                pos.pose.position.y = -(self.sensor_270 - self.sensor_90) 
+
+            elif self.sensor_90 - self.sensor_270 > 0.03:
+                pos.pose.position.y = -(self.sensor_270 - self.sensor_90) 
+
+            #if self.altimeter.range == 30.0:
+            #    pos.pose.position.z = 0.0
+            #else:
+            #    pos.pose.position.z = self.altimeter.range
+
+            # Establish desired orientation at setpoint
+            # roll_degrees = 0.0 
+            # roll = radians(roll_degrees)
+            # pitch_degrees = 0.0 
+            # pitch = radians(pitch_degrees)
+            # yaw_degrees = 0.0 
+            # yaw = radians(yaw_degrees)
+
+            # # Execute desired orientation
+            # quaternion = quaternion_from_euler(roll, pitch, yaw)
+            # pos.pose.orientation = Quaternion(*quaternion)
+
+
+        pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
+        self.pub_vis.publish(pos)
     
 
 if __name__ == '__main__':

@@ -227,10 +227,10 @@ class Straight_Inspection:
         pos.velocity.y = 0.05 # east(+), against east(-)
         #pos.velocity.z = 0.0
         if abs(self.local_position.pose.position.z) < 0.9:
-            pos.velocity.z = 0.03
+            pos.velocity.z = 0.015
 
         elif abs(self.local_position.pose.position.z) > 1.5:
-            pos.velocity.z = -0.03
+            pos.velocity.z = -0.015
 
         #pos.yaw = radians(0.0) # True North
 

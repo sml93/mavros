@@ -287,7 +287,6 @@ class setpoint_raw:
         self.pub_att.publish(att)
 
 
-
     def fly2(self):
         
         # Initialise necessary headers
@@ -334,7 +333,7 @@ class setpoint_raw:
             pos.pose.orientation = Quaternion(*quaternion)
 
 
-        else:
+        else:   
             # Establish desired setpoints
             pos.pose.position.x = self.local_position.pose.position.x 
             pos.pose.position.y = self.local_position.pose.position.y 

@@ -94,7 +94,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose> 7 -35 0 0 0 0 </pose> <!-- 7 -30 0 0 0 0 or -15 -35 0 0 0 0 (inside maze) -->
+      <pose> -15 -30 0 0 0 0 </pose> <!-- 7 -30 0 0 0 0 or -15 -35 0 0 0 0 (inside maze) -15 -30 0 0 0 0 (middle maze)  -->
     </model>
 
   </world>
