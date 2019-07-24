@@ -1,0 +1,144 @@
+#!/usr/bin/env python
+# vim:set ts=4 sw=4 et:
+#
+# Copyright 2015 UAVenture AG.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# Updated: Tarek Taha : tarek.taha@kustar.ac.ae, Vladimir Ermakov
+#    - Changed topic names after re-factoring : https://github.com/mavlink/mavros/issues/233
+#    - Use mavros.setpoint module for topics
+
+import rospy
+import thread
+import threading
+import time
+import mavros
+
+from numpy import linalg #linear algebra, can be used to find things like eigenvectors etc.
+import numpy as np
+
+from math import *
+from mavros.utils import *
+from mavros import setpoint as SP
+from std_msgs.msg import Header #type 
+from std_msgs.msg import Float64, Float32 #type from msg generation
+from geometry_msgs.msg import PoseStamped, Quaternion, TwistStamped #geometry
+from tf.transformations import quaternion_from_euler #transformation
+from mavros_msgs.srv import CommandLong #service_class
+from mavros_msgs.msg import ActuatorControl
+from sensor_msgs.msg import NavSatFix,Range #type
+
+
+class Gimbal_test:
+    """
+    This class sends position targets to FCU's position controller
+    """
+    def __init__(self):
+        self.timeout = 180
+        self.rate = rospy.Rate(30) # 10hz is the original 
+        self.local_position = PoseStamped()
+        self.actuator_control_message = ActuatorControl() 
+        self.seq = 0
+        
+        self.message_pub = rospy.Publisher("/mavros/actuator_control", ActuatorControl, queue_size=10)
+        self.local_pos_sub = rospy.Subscriber('mavros/local_position/pose', PoseStamped, self.local_position_callback)
+        self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
+
+
+        while not rospy.is_shutdown():
+            
+            print "Gimbal testing now @ yaw 0.5"
+            self.run()
+            self.seq = self.seq + 1
+            self.pos_hold()
+            self.rate.sleep()
+
+    def local_position_callback(self,data):
+        self.local_position = data
+
+
+    def run(self):
+                        #   r    p    y?
+        inputs = np.array((0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0))
+        self.actuator_control_message.header.stamp = rospy.Time.now()
+        self.actuator_control_message.header.seq = self.seq
+        self.actuator_control_message.group_mix = 2 # ActuatorControl.PX4_MIX_PAYLOAD
+        rospy.loginfo_throttle(3, inputs)
+        self.actuator_control_message.controls = inputs
+        self.message_pub.publish(self.actuator_control_message)
+
+    
+    def pos_hold(self): 
+        # Initialise necessary headers
+        pos = PoseStamped()
+        pos.header = Header()
+        pos.header.frame_id = "pos_hold"
+        
+
+        # Establish desired setpoints
+        pos.pose.position.x = self.local_position.pose.position.x 
+        pos.pose.position.y = self.local_position.pose.position.y 
+        #pos.pose.position.z = self.z
+        pos.pose.position.z = self.local_position.pose.position.z
+
+        # Establish desired orientation at setpoint
+        roll_degrees = 0.0 
+        roll = radians(roll_degrees)
+        pitch_degrees = 0.0 
+        pitch = radians(pitch_degrees)
+        yaw_degrees = 0.0
+        yaw = radians(yaw_degrees)
+
+        # Execute desired orientation
+        quaternion = quaternion_from_euler(roll, pitch, yaw) #roll,pitch,yaw
+        pos.pose.orientation = Quaternion(*quaternion)
+        
+        pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
+        # Publishing to rostopic   
+        self.pub_spt.publish(pos) # updated pose from pos.pose.orientation   
+
+
+if __name__ == '__main__':
+
+    rospy.init_node('gimbal_test', anonymous=True, log_level= rospy.INFO)
+    node = Gimbal_test()
+    rospy.spin()# spin() simply keeps python from exiting until this node is stopped
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+
