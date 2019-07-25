@@ -3,8 +3,7 @@
 	<!-- example launch script for PX4 based FCU's -->
 
 	<!--<arg name="fcu_url" default="/dev/ttyMFD1:921600" />-->
-	<arg name="fcu_url" default="/dev/ttyUSB0:921600" />
-	<!--roslaunch mavros shadow.launch fcu_url:=/dev/ttyUSB0:57600-->
+	<arg name="fcu_url" default="/dev/ttyPixhawk:921600" /> <!-- Saved under /etc/Udev/ rules -->
 	<arg name="gcs_url" default="udp://:14540@localhost:14557" />
 	<arg name="tgt_system" default="1" />
 	<arg name="tgt_component" default="1" />
@@ -28,6 +27,9 @@
 
 	 <!-- can insert the launch file for the teraRanger pkg from the teraranger_array node -->
         <!--<include file="$(find teraranger_array)/launch/hub_evo_60m_example.launch">
-        </include>--> 	
+        </include>--> 
+
+	<include file="$(find rplidar_ros)/launch/rplidar_a3.launch">
+        </include>	
 
 </launch>
