@@ -68,18 +68,18 @@ class shadow_rplidar_test:
 
         #rospy.Subscriber("hub_1/ranges_raw", RangeArray, self.hub_callback)
         rospy.Subscriber("scan",  LaserScan, self.scan_callback)
-        rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
-        self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
+        #rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
+        #self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
 
       
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
             
-            print "0:", self.sensor_0, "90:", self.sensor_90, "180:", self.sensor_180, "270:", self.sensor_270   
+            print ("0:", self.sensor_0, "90:", self.sensor_90, "180:", self.sensor_180, "270:", self.sensor_270)   
             self.rate.sleep() #The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
 
 
-    def position_callback(self, data): # callback invoked with the message as the first arg
-        self.local_position = data 
+    #def position_callback(self, data): # callback invoked with the message as the first arg
+    #    self.local_position = data 
     
     def scan_callback(self,data):
         angle_ls = []
