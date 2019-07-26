@@ -35,7 +35,7 @@ from mavros import setpoint as SP
 from std_msgs.msg import Header #type 
 from std_msgs.msg import Float64, Float32 #type from msg generation
 from geometry_msgs.msg import PoseStamped, Quaternion, TwistStamped #geometry
-from tf.transformations import quaternion_from_euler #transformation
+#from tf.transformations import quaternion_from_euler #transformation
 from mavros_msgs.srv import CommandLong #service_class
 from mavros_msgs.msg import PositionTarget,Thrust,AttitudeTarget
 from sensor_msgs.msg import NavSatFix,Range #type
