@@ -35,7 +35,7 @@ from mavros import setpoint as SP
 from std_msgs.msg import Header #type 
 from std_msgs.msg import Float64, Float32 #type from msg generation
 from geometry_msgs.msg import PoseStamped, Quaternion, TwistStamped #geometry
-from tf.transformations import quaternion_from_euler #transformation
+#from tf.transformations import quaternion_from_euler #transformation
 from mavros_msgs.srv import CommandLong #service_class
 from sensor_msgs.msg import NavSatFix,Range,LaserScan #type
 from mavros_msgs.msg import PositionTarget,Thrust
@@ -51,13 +51,16 @@ class Straight_Inspection:
     def __init__(self):
         self.x = None
         self.y = None
+        self.z = None
         self.armed = False  
         self.timeout = 180
         self.rate = rospy.Rate(50) # 10hz is the original 
         self.local_position = PoseStamped() 
-        self.count = 0
         self.counter = 0
         self.counter_2 = 0
+        self.counter_3 = 0
+        self.counter_4 = 0
+        self.z_increment = 0.0
         self.sensor_0 = 0.0
         self.sensor_45 = 0.0
         self.sensor_90 = 0.0
@@ -66,32 +69,32 @@ class Straight_Inspection:
         self.sensor_225 = 0.0
         self.sensor_270 = 0.0
         self.sensor_315 = 0.0 
+        self.kp = 0.8
+        self.min_alt = 0.80
+        self.wall_boundary = 1.50
 
-        #rospy.wait_for_service('mavros/cmd/arming', 30) # wait for arming, queue for 30s
         #rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
 
         rospy.Subscriber('/tf', TFMessage, self.callback_tf)
         rospy.Subscriber("scan",  LaserScan, self.scan_callback)
         rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
-        self.pub_vis = rospy.Publisher('mavros/vision_pose/pose', PoseStamped, queue_size=10)
         self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
-        #rospy.wait_for_service('mavros/cmd/command', 30)
-        #self._srv_cmd_long = rospy.ServiceProxy('mavros/cmd/command', CommandLong, persistent=True)
+        self.pub_vis = rospy.Publisher('mavros/vision_pose/pose', PoseStamped, queue_size=10)
       
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
             
-            print "0:", self.sensor_0, "90:", self.sensor_90, "180:", self.sensor_180, "270:", self.sensor_270, "alti: ", abs(self.local_position.pose.position.z), "Counter: ", self.counter, "Iteration_18"
+            print "alti: ", abs(self.local_position.pose.position.z), "Counter: ", self.counter, "Counter2", self.counter_2, "Counter3", self.counter_3, "Counter4", self.counter_4, "Z:", self.z
             while not self.x or not self.y:
                 time.sleep(0.01)
 
-            if self.sensor_0 <= 1.50:
+            if self.sensor_0 <= 2.40: # first wall
                 self.counter = self.counter + 1
                
             if self.counter < 4:
-                self.fly2() 
+                self.left() 
             
             elif self.counter >= 4:
-                self.fly3()  
+                self.top_right_bot()  
             
             self.estimator()
             self.rate.sleep()
@@ -105,6 +108,7 @@ class Straight_Inspection:
         if data.transforms[0].child_frame_id == "base_footprint":
             self.y = -data.transforms[0].transform.translation.x
             self.x = data.transforms[0].transform.translation.y
+            self.z = data.transforms[0].transform.translation.z
 
 
     def scan_callback(self,data):
@@ -123,171 +127,129 @@ class Straight_Inspection:
         self.sensor_315 = self.scan.ranges[angle_ls[1]]  
 
 
-    def arm(self):
-        if self.count < self.timeout:
-            # FIXME: arm and switch to offboard
-            # (need to wait the first few rounds until PX4 has the offboard stream)
-            if not self.armed and self.count > 5:
-                self._srv_cmd_long(False, 176, False,
-                                   1, 6, 0, 0, 0, 0, 0)
-                # make sure the first command doesn't get lost
-                time.sleep(1)
-
-                self._srv_cmd_long(False, 400, False,
-                                   # arm
-                                   1, 0, 0, 0, 0, 0, 0)
-
-                self.armed = True
-            self.count = self.count + 1
-            self.rate.sleep() # The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
-
-
-    def fly2(self):
-        
+    def left(self):
         # Initialise necessary headers
         pos = PoseStamped()
         pos.header = Header()
-        pos.header.frame_id = "fly2"
+        pos.header.frame_id = "left"
 
-        if self.sensor_0 >= 1.5:
-            # Establish desired setpoints
-            pos.pose.position.x = self.local_position.pose.position.x - 0.015
+        # Establish desired setpoints
+        pos.pose.position.x = self.local_position.pose.position.x - (self.kp * ( self.sensor_0 - self.wall_boundary ))
+        pos.pose.position.y = self.local_position.pose.position.y - (self.kp * ( self.sensor_90 - self.wall_boundary ))
+        pos.pose.position.z = self.local_position.pose.position.z - (self.kp * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))    
             
-        else:
-            # Establish desired setpoints
-            pos.pose.position.x = self.local_position.pose.position.x 
-            
-            
-        if self.sensor_90 >= 1.5:
-            # Establish desired setpoints
-            pos.pose.position.y = self.local_position.pose.position.y - 0.015
-
-        elif self.sensor_90 < 1.3:
-            # Establish desired setpoints
-            pos.pose.position.y = self.local_position.pose.position.y + 0.015
-            
-        else:
-            # Establish desired setpoints
-            pos.pose.position.y = self.local_position.pose.position.y 
-            
-            
-        if self.local_position.pose.position.z >= 1.5:
-            pos.pose.position.z = self.local_position.pose.position.z - 0.018
-
-        elif self.local_position.pose.position.z < 1.3:
-            pos.pose.position.z = self.local_position.pose.position.z + 0.018
-            
-        else:
-            pos.pose.position.z = self.local_position.pose.position.z
-            
-            
-        # Establish desired orientation at setpoint
         roll_degrees = 0.0 
         roll = radians(roll_degrees)
         pitch_degrees = 0.0 
         pitch = radians(pitch_degrees)
-        yaw_degrees = 180.0 
+        yaw_degrees = 180.0 + (self.sensor_45 - self.sensor_135) 
         yaw = radians(yaw_degrees)
 
-        # Execute desired orientation
-        quaternion = quaternion_from_euler(roll, pitch, yaw)
+        qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+        qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+        qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+        qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+
+        quaternion = [qx,qy,qz,qw]
         pos.pose.orientation = Quaternion(*quaternion)
-
-        pos.header.stamp = rospy.Time.now()
-        self.pub_spt.publish(pos) 
-
-
-    def fly3(self):
         
+        # Publishing to rostopic 
+        pos.header.stamp = rospy.Time.now()  
+        self.pub_spt.publish(pos) # updated pose from pos.pose.orientation
+
+
+    def top_right_bot(self):
         # Initialise necessary headers
         pos = PoseStamped()
         pos.header = Header()
-        pos.header.frame_id = "fly3"
+        pos.header.frame_id = "top_right_bot" 
 
-
-        if self.sensor_315 <= 1.2:
+        if self.sensor_0 <= 2.20: # second wall
             self.counter_2 = self.counter_2 + 1
 
+
         if self.counter_2 < 4:    
-            if self.sensor_90 >= 1.5:
-                # Establish desired setpoints
-                pos.pose.position.x = self.local_position.pose.position.x + 0.015
-
-            elif self.sensor_90 < 1.3:
-                # Establish desired setpoints
-                pos.pose.position.x = self.local_position.pose.position.x - 0.015
-                
-            else:
-                # Establish desired setpoints
-                pos.pose.position.x = self.local_position.pose.position.x 
-                
-                
-            if self.sensor_0 >= 1.0:
-                # Establish desired setpoints
-                pos.pose.position.y = self.local_position.pose.position.y + 0.015
-
-            else:
-                # Establish desired setpoints
-                pos.pose.position.y = self.local_position.pose.position.y 
-
-                
-            if self.local_position.pose.position.z >= 1.5:
-                pos.pose.position.z = self.local_position.pose.position.z - 0.018
-
-            elif self.local_position.pose.position.z < 1.3:
-                pos.pose.position.z = self.local_position.pose.position.z + 0.018
-            
-            else:
-                pos.pose.position.z = self.local_position.pose.position.z
-
-
-        if self.counter_2 > 4:
-            if self.sensor_90 >= 1.5:
             # Establish desired setpoints
-                pos.pose.position.x = self.local_position.pose.position.x + 0.015
-
-            elif self.sensor_90 < 1.3:
-                # Establish desired setpoints
-                pos.pose.position.x = self.local_position.pose.position.x - 0.015
-                
-            else:
-                # Establish desired setpoints
-                pos.pose.position.x = self.local_position.pose.position.x 
-                
-                
-            if self.sensor_180 >= 1.2:
-                # Establish desired setpoints
-                pos.pose.position.y = self.local_position.pose.position.y - 0.015
-
-            else:
-                # Establish desired setpoints
-                pos.pose.position.y = self.local_position.pose.position.y 
-
-                        
-            if self.local_position.pose.position.z >= 1.7:
-                pos.pose.position.z = self.local_position.pose.position.z - 0.018
-
-            elif self.local_position.pose.position.z < 1.5:
-                pos.pose.position.z = self.local_position.pose.position.z + 0.018
-                
-            else:
-                pos.pose.position.z = self.local_position.pose.position.z
+            pos.pose.position.x = self.local_position.pose.position.x - (self.kp * ( self.sensor_90 - self.wall_boundary ))
+            pos.pose.position.y = self.local_position.pose.position.y + (self.kp * ( self.sensor_0 - self.wall_boundary ))
+            pos.pose.position.z = self.local_position.pose.position.z - (self.kp * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) )) 
             
-            
-        # Establish desired orientation at setpoint
-        roll_degrees = 0.0 
-        roll = radians(roll_degrees)
-        pitch_degrees = 0.0 
-        pitch = radians(pitch_degrees)
-        yaw_degrees = 90.0 
-        yaw = radians(yaw_degrees)
+            roll_degrees = 0.0 
+            roll = radians(roll_degrees)
+            pitch_degrees = 0.0 
+            pitch = radians(pitch_degrees)
+            yaw_degrees = 90.0 + (self.sensor_45 - self.sensor_135) 
+            yaw = radians(yaw_degrees)
 
-        # Execute desired orientation
-        quaternion = quaternion_from_euler(roll, pitch, yaw)
-        pos.pose.orientation = Quaternion(*quaternion)
+            qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+            qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+            qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+            qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+
+            quaternion = [qx,qy,qz,qw]
+            pos.pose.orientation = Quaternion(*quaternion)
+            
+
+        elif self.counter_2 >= 4:
+                
+            if self.sensor_180 >= 6.20: # third wall
+                self.counter_3 = self.counter_3 + 1
+
+            if self.counter_3 < 4:         
+                pos.pose.position.x = self.local_position.pose.position.x + (self.kp * ( self.sensor_0 - self.wall_boundary ))
+                pos.pose.position.y = self.local_position.pose.position.y + (self.kp * ( self.sensor_90 - self.wall_boundary ))
+                pos.pose.position.z = self.local_position.pose.position.z - (self.kp * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))
+            
+                roll_degrees = 0.0 
+                roll = radians(roll_degrees)
+                pitch_degrees = 0.0 
+                pitch = radians(pitch_degrees)
+                yaw_degrees = 0.0 + (self.sensor_45 - self.sensor_135) 
+                yaw = radians(yaw_degrees)
+
+                qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+                qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+                qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+                qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+
+                quaternion = [qx,qy,qz,qw]
+                pos.pose.orientation = Quaternion(*quaternion)
+
+            elif self.counter_3 >= 4:   
+
+                if self.sensor_0 <= 2.50: # fourth wall
+                    self.counter_4 = self.counter_4 + 1
+
+                if self.counter_4 < 4:
+                    pos.pose.position.x = self.local_position.pose.position.x + (self.kp * ( self.sensor_90 - self.wall_boundary ))
+                    pos.pose.position.y = self.local_position.pose.position.y - (self.kp * ( self.sensor_0 - self.wall_boundary ))
+                    pos.pose.position.z = self.local_position.pose.position.z - (self.kp * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))
+                
+                    roll_degrees = 0.0 
+                    roll = radians(roll_degrees)
+                    pitch_degrees = 0.0 
+                    pitch = radians(pitch_degrees)
+                    yaw_degrees = 270.0 + (self.sensor_45 - self.sensor_135) 
+                    yaw = radians(yaw_degrees)
+
+                    qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+                    qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+                    qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+                    qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+
+                    quaternion = [qx,qy,qz,qw]
+                    pos.pose.orientation = Quaternion(*quaternion)
+
+                elif self.counter_4 >= 4:
+                    self.counter = 0
+                    self.counter_2 = 0
+                    self.counter_3 = 0
+                    self.counter_4 = 0 
+                    self.z_increment = self.z_increment + 0.30
+
 
         pos.header.stamp = rospy.Time.now()
-        self.pub_spt.publish(pos) 
+        self.pub_spt.publish(pos)
         
             
     def estimator(self):
@@ -311,4 +273,3 @@ if __name__ == '__main__':
 
     rospy.spin()  # spin() simply keeps python from exiting until this node is stopped
      
-
