@@ -70,6 +70,7 @@ class Straight_Inspection:
         self.sensor_270 = 0.0
         self.sensor_315 = 0.0 
         self.kp = 0.08
+        self.kp_z = 0.08
         self.min_alt = 0.80
         self.wall_boundary = 1.50
 
@@ -143,7 +144,7 @@ class Straight_Inspection:
         # Establish desired setpoints
         pos.pose.position.x = self.local_position.pose.position.x - (self.kp * ( self.sensor_0 - self.wall_boundary ))
         pos.pose.position.y = self.local_position.pose.position.y - (self.kp * ( self.sensor_90 - self.wall_boundary ))
-        pos.pose.position.z = self.local_position.pose.position.z - (self.kp * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))    
+        pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))    
             
         roll_degrees = 0.0 
         roll = radians(roll_degrees)
@@ -179,7 +180,7 @@ class Straight_Inspection:
             # Establish desired setpoints
             pos.pose.position.x = self.local_position.pose.position.x - (self.kp * ( self.sensor_90 - self.wall_boundary ))
             pos.pose.position.y = self.local_position.pose.position.y + (self.kp * ( self.sensor_0 - self.wall_boundary ))
-            pos.pose.position.z = self.local_position.pose.position.z - (self.kp * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) )) 
+            pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) )) 
             
             roll_degrees = 0.0 
             roll = radians(roll_degrees)
@@ -205,7 +206,7 @@ class Straight_Inspection:
             if self.counter_3 < 4:         
                 pos.pose.position.x = self.local_position.pose.position.x + (self.kp * ( self.sensor_0 - self.wall_boundary ))
                 pos.pose.position.y = self.local_position.pose.position.y + (self.kp * ( self.sensor_90 - self.wall_boundary ))
-                pos.pose.position.z = self.local_position.pose.position.z - (self.kp * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))
+                pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))
             
                 roll_degrees = 0.0 
                 roll = radians(roll_degrees)
@@ -230,7 +231,7 @@ class Straight_Inspection:
                 if self.counter_4 < 4:
                     pos.pose.position.x = self.local_position.pose.position.x + (self.kp * ( self.sensor_90 - self.wall_boundary ))
                     pos.pose.position.y = self.local_position.pose.position.y - (self.kp * ( self.sensor_0 - self.wall_boundary ))
-                    pos.pose.position.z = self.local_position.pose.position.z - (self.kp * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))
+                    pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))
                 
                     roll_degrees = 0.0 
                     roll = radians(roll_degrees)
