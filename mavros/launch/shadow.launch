@@ -29,7 +29,7 @@
         <!--<include file="$(find teraranger_array)/launch/hub_evo_60m_example.launch">
         </include>--> 
 
-	<include file="$(find rplidar_ros)/launch/rplidar_a3.launch">
-        </include>	
+	<!-- <include file="$(find rplidar_ros)/launch/rplidar_a3.launch">
+        </include> -->	
 
 </launch>

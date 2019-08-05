@@ -84,11 +84,11 @@ class Straight_Inspection:
       
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
             
-            print "45: ", self.sensor_45, "alti: ", abs(self.local_position.pose.position.z), "Counter: ", self.counter, "Counter2: ", self.counter_2, "Counter3: ", self.counter_3, "Counter4: ", self.counter_4, "Z: ", self.z
+            print "45: ", self.sensor_45, "z_increment: ", self.z_increment, "Counter: ", self.counter, "Counter2: ", self.counter_2, "Counter3: ", self.counter_3, "Counter4: ", self.counter_4, "Z: ", self.z
             while not self.x or not self.y:
                 time.sleep(0.01)
 
-            if self.z_increment < 0.6:
+            if self.z_increment < 0.4:
              
                 if self.sensor_0 <= 2.40: # first wall
                     self.counter = self.counter + 1
@@ -253,7 +253,7 @@ class Straight_Inspection:
                     self.counter_2 = 0
                     self.counter_3 = 0
                     self.counter_4 = 0 
-                    self.z_increment = self.z_increment + 0.30
+                    self.z_increment = self.z_increment + 0.20
 
 
         pos.header.stamp = rospy.Time.now()
