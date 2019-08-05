@@ -85,7 +85,13 @@ class Straight_Inspection:
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
             
             print "0: ", self.sensor_0, "alti: ", abs(self.local_position.pose.position.z), "Counter: ", self.counter, "Counter2: ", self.counter_2, "Z: ", self.z
-            while not self.x or not self.y:
+            while not self.x or not self.y or self.sensor_0 > 25 or self.sensor_90 > 25:
+                if self.sensor_0 > 25:
+                    print "0"
+                
+                if self.sensor_90 > 25:
+                    print "90"
+                
                 time.sleep(0.01)
  
             if self.sensor_0 <= 2.40: # first wall
