@@ -71,7 +71,7 @@ class Straight_Inspection:
         self.sensor_315 = 0.0 
         self.kp = 0.08
         self.kp_z = 0.08
-        self.min_alt = 0.80
+        self.min_alt = 0.40
         self.wall_boundary = 1.50
 
         #rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
@@ -114,8 +114,8 @@ class Straight_Inspection:
 
     def callback_tf(self,data):
         if data.transforms[0].child_frame_id == "base_footprint":
-            self.y = -data.transforms[0].transform.translation.x
-            self.x = data.transforms[0].transform.translation.y
+            self.y = data.transforms[0].transform.translation.y
+            self.x = data.transforms[0].transform.translation.x
             self.z = data.transforms[0].transform.translation.z
 
 
@@ -125,14 +125,29 @@ class Straight_Inspection:
             angle_ls.append(-(i+1))
 
         self.scan = data
-        self.sensor_0 = self.scan.ranges[angle_ls[0]]
-        self.sensor_45 = self.scan.ranges[angle_ls[7]]
-        self.sensor_90 = self.scan.ranges[angle_ls[6]]
-        self.sensor_135 = self.scan.ranges[angle_ls[5]]
-        self.sensor_180 = self.scan.ranges[angle_ls[4]]
-        self.sensor_225 = self.scan.ranges[angle_ls[3]]
-        self.sensor_270 = self.scan.ranges[angle_ls[2]]
-        self.sensor_315 = self.scan.ranges[angle_ls[1]]  
+        if self.scan.ranges[angle_ls[0]] < 25:
+            self.sensor_0 = self.scan.ranges[angle_ls[0]]
+            
+        if self.scan.ranges[angle_ls[7]] < 25:
+            self.sensor_45 = self.scan.ranges[angle_ls[7]]
+
+        if self.scan.ranges[angle_ls[6]] < 25:
+            self.sensor_90 = self.scan.ranges[angle_ls[6]]
+        
+        if self.scan.ranges[angle_ls[5]] < 25:
+            self.sensor_135 = self.scan.ranges[angle_ls[5]]
+        
+        if self.scan.ranges[angle_ls[4]] < 25:
+            self.sensor_180 = self.scan.ranges[angle_ls[4]]
+        
+        if self.scan.ranges[angle_ls[3]] < 25:
+            self.sensor_225 = self.scan.ranges[angle_ls[3]]
+        
+        if self.scan.ranges[angle_ls[2]] < 25:
+            self.sensor_270 = self.scan.ranges[angle_ls[2]]
+        
+        if self.scan.ranges[angle_ls[1]] < 25:
+            self.sensor_315 = self.scan.ranges[angle_ls[1]]  
 
 
     def left(self):
@@ -200,7 +215,7 @@ class Straight_Inspection:
 
         elif self.counter_2 >= 4:
                 
-            if self.sensor_45 <= 2.00: # third wall
+            if self.sensor_45 <= 1.0: # third wall
                 self.counter_3 = self.counter_3 + 1
 
             if self.counter_3 < 4:         

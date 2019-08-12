@@ -70,9 +70,12 @@ class Straight_Inspection:
         self.sensor_270 = 0.0
         self.sensor_315 = 0.0 
         self.kp = 0.08
-        self.kp_z = 0.08
-        self.min_alt = 0.80
+        self.kp_z = 0.06
+        self.kd_z = 0.03
+        self.min_alt = 0.50
         self.wall_boundary = 1.50
+        self.error = 0.0
+        self.derivator = 0.0
 
         #rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
 
@@ -85,13 +88,8 @@ class Straight_Inspection:
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
             
             print "0: ", self.sensor_0, "alti: ", abs(self.local_position.pose.position.z), "Counter: ", self.counter, "Counter2: ", self.counter_2, "Z: ", self.z
-            while not self.x or not self.y or self.sensor_0 > 25 or self.sensor_90 > 25:
-                if self.sensor_0 > 25:
-                    print "0"
-                
-                if self.sensor_90 > 25:
-                    print "90"
-                
+            while not self.x or not self.y or self.sensor_0 > 25 or self.sensor_90 > 25 or self.sensor_180 > 25 :
+                print "INFINITY"
                 time.sleep(0.01)
  
             if self.sensor_0 <= 2.40: # first wall
@@ -112,9 +110,9 @@ class Straight_Inspection:
 
 
     def callback_tf(self,data):
-        if data.transforms[0].child_frame_id == "base_footprint":
-            self.y = -data.transforms[0].transform.translation.x
-            self.x = data.transforms[0].transform.translation.y
+        if data.transforms[0].child_frame_id == "base_footprint": # check this orientation
+            self.x = data.transforms[0].transform.translation.x
+            self.y = data.transforms[0].transform.translation.y
             self.z = data.transforms[0].transform.translation.z
 
 
@@ -124,14 +122,29 @@ class Straight_Inspection:
             angle_ls.append(-(i+1))
 
         self.scan = data
-        self.sensor_0 = self.scan.ranges[angle_ls[0]]
-        self.sensor_45 = self.scan.ranges[angle_ls[7]]
-        self.sensor_90 = self.scan.ranges[angle_ls[6]]
-        self.sensor_135 = self.scan.ranges[angle_ls[5]]
-        self.sensor_180 = self.scan.ranges[angle_ls[4]]
-        self.sensor_225 = self.scan.ranges[angle_ls[3]]
-        self.sensor_270 = self.scan.ranges[angle_ls[2]]
-        self.sensor_315 = self.scan.ranges[angle_ls[1]]  
+        if self.scan.ranges[angle_ls[0]] < 25:
+            self.sensor_0 = self.scan.ranges[angle_ls[0]]
+            
+        if self.scan.ranges[angle_ls[7]] < 25:
+            self.sensor_45 = self.scan.ranges[angle_ls[7]]
+
+        if self.scan.ranges[angle_ls[6]] < 25:
+            self.sensor_90 = self.scan.ranges[angle_ls[6]]
+        
+        if self.scan.ranges[angle_ls[5]] < 25:
+            self.sensor_135 = self.scan.ranges[angle_ls[5]]
+        
+        if self.scan.ranges[angle_ls[4]] < 25:
+            self.sensor_180 = self.scan.ranges[angle_ls[4]]
+        
+        if self.scan.ranges[angle_ls[3]] < 25:
+            self.sensor_225 = self.scan.ranges[angle_ls[3]]
+        
+        if self.scan.ranges[angle_ls[2]] < 25:
+            self.sensor_270 = self.scan.ranges[angle_ls[2]]
+        
+        if self.scan.ranges[angle_ls[1]] < 25:
+            self.sensor_315 = self.scan.ranges[angle_ls[1]]  
 
 
     def left(self):
@@ -143,7 +156,9 @@ class Straight_Inspection:
         # Establish desired setpoints
         pos.pose.position.x = self.local_position.pose.position.x - (self.kp * ( self.sensor_0 - self.wall_boundary ))
         pos.pose.position.y = self.local_position.pose.position.y - (self.kp * ( self.sensor_90 - self.wall_boundary ))
-        pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt) ))    
+        self.error = self.local_position.pose.position.z - self.min_alt
+        pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * self.error) -  (self.kd_z * (self.error - self.derivator))
+        self.derivator = self.error     
             
         roll_degrees = 0.0 
         roll = radians(roll_degrees)
@@ -179,7 +194,9 @@ class Straight_Inspection:
             # Establish desired setpoints
             pos.pose.position.x = self.local_position.pose.position.x - (self.kp * ( self.sensor_90 - self.wall_boundary ))
             pos.pose.position.y = self.local_position.pose.position.y + (self.kp * ( self.sensor_0 - self.wall_boundary ))
-            pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt) )) 
+            self.error = self.local_position.pose.position.z - self.min_alt
+            pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * self.error) -  (self.kd_z * (self.error - self.derivator))
+            self.derivator = self.error  
             
             roll_degrees = 0.0 
             roll = radians(roll_degrees)
@@ -201,7 +218,9 @@ class Straight_Inspection:
                 
             pos.pose.position.x = self.local_position.pose.position.x - (self.kp * ( self.sensor_90 - self.wall_boundary ))
             pos.pose.position.y = self.local_position.pose.position.y - (self.kp * ( self.sensor_180 - self.wall_boundary ))
-            pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt + 0.2) ))
+            self.error = self.local_position.pose.position.z - (self.min_alt + 0.4)
+            pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * self.error) -  (self.kd_z * (self.error - self.derivator))
+            self.derivator = self.error 
         
             roll_degrees = 0.0 
             roll = radians(roll_degrees)
