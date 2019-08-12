@@ -82,7 +82,7 @@ class Straight_Inspection:
         self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10) # navigation topic to publish to
         self.pub_vis = rospy.Publisher('mavros/vision_pose/pose', PoseStamped, queue_size=10) # topic to publish to for position estimates
       
-        while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
+        while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (run the functions within)  
             
             print "45: ", self.sensor_45, "z_increment: ", self.z_increment, "Counter: ", self.counter, "Counter2: ", self.counter_2, "Counter3: ", self.counter_3, "Counter4: ", self.counter_4
             while not self.x or not self.y:
@@ -105,7 +105,7 @@ class Straight_Inspection:
                 self.left() 
 
             self.estimator()
-            self.rate.sleep() # runs the code at 50 times per second
+            self.rate.sleep() # runs the while loop at 50 times per second
  
 
     def position_callback(self, data): # callback invoked with the message as the first arg
@@ -119,7 +119,7 @@ class Straight_Inspection:
             self.z = data.transforms[0].transform.translation.z
 
 
-    def scan_callback(self,data): # lidar range values are rejected if they exceed 25 metres
+    def scan_callback(self,data): # lidar range values are rejected if they exceed 25 metres, this is added as range values can go up to INF due to timesync
         angle_ls = []
         for i in range(0,1440,180):
             angle_ls.append(-(i+1))
