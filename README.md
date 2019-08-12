@@ -21,7 +21,7 @@ MAVLink extendable communication node for ROS.
 Instructions on launching the files for navigation for the Shadow Drone:
 ----------------------
 
- - RUN sudo chmod 666 /dev/ttyPixhawk to enable read serial from the Pixhawk 2.1 FCU
+ - RUN sudo chmod 666 /dev/ttyPixhawk to enable serial read from Pixhawk 2.1 FCU
 
  - RUN roslaunch mavros shadow.launch to establish connection with Pixhawk 2.1 FCU
 
