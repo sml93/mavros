@@ -69,18 +69,18 @@ class Straight_Inspection:
         self.sensor_225 = 0.0
         self.sensor_270 = 0.0
         self.sensor_315 = 0.0 
-        self.kp = 0.08
-        self.kp_z = 0.08
-        self.min_alt = 0.40
-        self.wall_boundary = 1.50
+        self.kp = 0.08 # P gain for horizontal position as well as yaw orientation
+        self.kp_z = 0.08 # P gain for altitude
+        self.min_alt = 0.40 # Starting altitude
+        self.wall_boundary = 1.50 # Distance to remain from the wall
 
         #rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
 
-        rospy.Subscriber('/tf', TFMessage, self.callback_tf)
-        rospy.Subscriber("scan",  LaserScan, self.scan_callback)
-        rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
-        self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
-        self.pub_vis = rospy.Publisher('mavros/vision_pose/pose', PoseStamped, queue_size=10)
+        rospy.Subscriber('/tf', TFMessage, self.callback_tf) # subscription to transform from Rtab Map
+        rospy.Subscriber("scan",  LaserScan, self.scan_callback) # subscription to range values from rplidar
+        rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback) # topic to subscribe to for localisation
+        self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10) # navigation topic to publish to
+        self.pub_vis = rospy.Publisher('mavros/vision_pose/pose', PoseStamped, queue_size=10) # topic to publish to for position estimates
       
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
             
@@ -88,38 +88,38 @@ class Straight_Inspection:
             while not self.x or not self.y:
                 time.sleep(0.01)
 
-            if self.z_increment < 0.4:
+            if self.z_increment < 0.4: # if the height that the drone flies is within the ceiling limit, the spiral would continue 
              
-                if self.sensor_0 <= 2.40: # first wall
-                    self.counter = self.counter + 1
+                if self.sensor_0 <= 2.40: # first corner encountered, counter would increment to transit into next state
+                    self.counter = self.counter + 1 # counter locks the state
                    
-                if self.counter < 4:
+                if self.counter < 4: # if first corner is not reached, drone would remain in the first state which is fly by left side of the room
                     self.left() 
                 
-                elif self.counter >= 4:
+                elif self.counter >= 4: # else it would transit into next state  
                     self.top_right_bot() 
 
             else:
 
-                self.z_increment = 0.0
-                self.left()
+                self.z_increment = 0.0 # the moment the increment is too high, reset the z_increment to 0.0
+                self.left() 
 
             self.estimator()
-            self.rate.sleep()
+            self.rate.sleep() # runs the code at 50 times per second
  
 
     def position_callback(self, data): # callback invoked with the message as the first arg
         self.local_position = data 
 
 
-    def callback_tf(self,data):
+    def callback_tf(self,data): # transform data from Rtab Map
         if data.transforms[0].child_frame_id == "base_footprint":
             self.y = data.transforms[0].transform.translation.y
             self.x = data.transforms[0].transform.translation.x
             self.z = data.transforms[0].transform.translation.z
 
 
-    def scan_callback(self,data):
+    def scan_callback(self,data): # lidar range values are rejected if they exceed 25 metres
         angle_ls = []
         for i in range(0,1440,180):
             angle_ls.append(-(i+1))
@@ -150,13 +150,13 @@ class Straight_Inspection:
             self.sensor_315 = self.scan.ranges[angle_ls[1]]  
 
 
-    def left(self):
+    def left(self): # navigation on the left side of the room
         # Initialise necessary headers
         pos = PoseStamped()
         pos.header = Header()
         pos.header.frame_id = "left"
 
-        # Establish desired setpoints
+        # Establish desired setpoints via a P controller for X Y Z Position
         pos.pose.position.x = self.local_position.pose.position.x - (self.kp * ( self.sensor_0 - self.wall_boundary ))
         pos.pose.position.y = self.local_position.pose.position.y - (self.kp * ( self.sensor_90 - self.wall_boundary ))
         pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))    
@@ -165,7 +165,7 @@ class Straight_Inspection:
         roll = radians(roll_degrees)
         pitch_degrees = 0.0 
         pitch = radians(pitch_degrees)
-        yaw_degrees = 180.0 + (self.kp * (self.sensor_45 - self.sensor_135)) 
+        yaw_degrees = 180.0 + (self.kp * (self.sensor_45 - self.sensor_135)) # P controller for yaw orientation
         yaw = radians(yaw_degrees)
 
         qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
@@ -173,7 +173,7 @@ class Straight_Inspection:
         qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
         qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
 
-        quaternion = [qx,qy,qz,qw]
+        quaternion = [qx,qy,qz,qw] # drone only takes in quarternion values, therefore have to do euler to quarternion conversion
         pos.pose.orientation = Quaternion(*quaternion)
         
         # Publishing to rostopic 
@@ -187,12 +187,12 @@ class Straight_Inspection:
         pos.header = Header()
         pos.header.frame_id = "top_right_bot" 
 
-        if self.sensor_0 <= 2.20: # second wall
-            self.counter_2 = self.counter_2 + 1
+        if self.sensor_0 <= 2.20: # transition from front side to right side of the room 
+            self.counter_2 = self.counter_2 + 1 # counter locks the state
 
 
-        if self.counter_2 < 4:    
-            # Establish desired setpoints
+        if self.counter_2 < 4: # navigation on the front side of the room   
+            # Establish desired setpoints via P controller
             pos.pose.position.x = self.local_position.pose.position.x - (self.kp * ( self.sensor_90 - self.wall_boundary ))
             pos.pose.position.y = self.local_position.pose.position.y + (self.kp * ( self.sensor_0 - self.wall_boundary ))
             pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) )) 
@@ -201,7 +201,7 @@ class Straight_Inspection:
             roll = radians(roll_degrees)
             pitch_degrees = 0.0 
             pitch = radians(pitch_degrees)
-            yaw_degrees = 90.0 + (self.kp * (self.sensor_45 - self.sensor_135)) 
+            yaw_degrees = 90.0 + (self.kp * (self.sensor_45 - self.sensor_135)) # P controller for yaw orientation
             yaw = radians(yaw_degrees)
 
             qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
@@ -215,10 +215,10 @@ class Straight_Inspection:
 
         elif self.counter_2 >= 4:
                 
-            if self.sensor_45 <= 1.0: # third wall
-                self.counter_3 = self.counter_3 + 1
+            if self.sensor_45 <= 1.0: # transition from right side to the back side of the room 
+                self.counter_3 = self.counter_3 + 1 # counter locks the state
 
-            if self.counter_3 < 4:         
+            if self.counter_3 < 4: # navigation on the right side of the room         
                 pos.pose.position.x = self.local_position.pose.position.x + (self.kp * ( self.sensor_0 - self.wall_boundary ))
                 pos.pose.position.y = self.local_position.pose.position.y + (self.kp * ( self.sensor_90 - self.wall_boundary ))
                 pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))
@@ -240,10 +240,10 @@ class Straight_Inspection:
 
             elif self.counter_3 >= 4:   
 
-                if self.sensor_0 <= 2.50: # fourth wall
-                    self.counter_4 = self.counter_4 + 1
+                if self.sensor_0 <= 2.50: # transition from back side to the left side of the room 
+                    self.counter_4 = self.counter_4 + 1 # counter locks the state
 
-                if self.counter_4 < 4:
+                if self.counter_4 < 4: # navigation on the back side of the room  
                     pos.pose.position.x = self.local_position.pose.position.x + (self.kp * ( self.sensor_90 - self.wall_boundary ))
                     pos.pose.position.y = self.local_position.pose.position.y - (self.kp * ( self.sensor_0 - self.wall_boundary ))
                     pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))
@@ -263,12 +263,12 @@ class Straight_Inspection:
                     quaternion = [qx,qy,qz,qw]
                     pos.pose.orientation = Quaternion(*quaternion)
 
-                elif self.counter_4 >= 4:
+                elif self.counter_4 >= 4: # resets the states and goes back to the left side of the room, essentially, the drone is flying in a clockwise fashion within the room
                     self.counter = 0
                     self.counter_2 = 0
                     self.counter_3 = 0
                     self.counter_4 = 0 
-                    self.z_increment = self.z_increment + 0.20
+                    self.z_increment = self.z_increment + 0.20 # while it begins the next clockwise loop, it also increases in altitude so the drone spirals up 
 
 
         pos.header.stamp = rospy.Time.now()
