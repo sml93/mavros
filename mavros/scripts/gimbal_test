@@ -35,7 +35,7 @@ from mavros import setpoint as SP
 from std_msgs.msg import Header #type 
 from std_msgs.msg import Float64, Float32 #type from msg generation
 from geometry_msgs.msg import PoseStamped, Quaternion, TwistStamped #geometry
-from tf.transformations import quaternion_from_euler #transformation
+#from tf.transformations import quaternion_from_euler #transformation
 from mavros_msgs.srv import CommandLong #service_class
 from mavros_msgs.msg import ActuatorControl
 from sensor_msgs.msg import NavSatFix,Range #type
@@ -47,20 +47,26 @@ class Gimbal_test:
     """
     def __init__(self):
         self.timeout = 180
-        self.rate = rospy.Rate(30) # 10hz is the original 
+        self.rate = rospy.Rate(2) # 10hz is the original 
         self.local_position = PoseStamped()
         self.actuator_control_message = ActuatorControl() 
-        self.seq = 0
+        self.seq = 1
+        #self.yaw = 0.0
         
         self.message_pub = rospy.Publisher("/mavros/actuator_control", ActuatorControl, queue_size=10)
         self.local_pos_sub = rospy.Subscriber('mavros/local_position/pose', PoseStamped, self.local_position_callback)
-        self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
+        self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10) # Local_NED
 
+        #rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg) 
 
         while not rospy.is_shutdown():
             
-            print "Gimbal testing now @ yaw 0.5"
-            self.run()
+            print "Gimbal testing now @ yaw in Offboard Mode"
+            if self.seq % 2 == 0:
+                self.yaw = 0.2
+            else:
+                self.yaw = -0.2    
+            self.test()
             self.seq = self.seq + 1
             self.pos_hold()
             self.rate.sleep()
@@ -69,13 +75,13 @@ class Gimbal_test:
         self.local_position = data
 
 
-    def run(self):
-                        #   r    p    y?
-        inputs = np.array((0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0))
+    def test(self):
+                        #   r    p    y                  yaw  
+        inputs = np.array((0.0, 0.0, 0.0, 0.0, 0.0, 0.0, self.yaw, 0.0)) 
         self.actuator_control_message.header.stamp = rospy.Time.now()
         self.actuator_control_message.header.seq = self.seq
-        self.actuator_control_message.group_mix = 2 # ActuatorControl.PX4_MIX_PAYLOAD
-        rospy.loginfo_throttle(3, inputs)
+        self.actuator_control_message.group_mix = 1 # gimbal control ActuatorControl.PX4_MIX_PAYLOAD is the original, group 3 is for manual pass through, 2 for pxh shell only (vmount), 3 for RC, 1 is alternate and it can be implemented via mavros  
+        rospy.loginfo_throttle(2, inputs)
         self.actuator_control_message.controls = inputs
         self.message_pub.publish(self.actuator_control_message)
 
@@ -88,8 +94,8 @@ class Gimbal_test:
         
 
         # Establish desired setpoints
-        pos.pose.position.x = self.local_position.pose.position.x 
-        pos.pose.position.y = self.local_position.pose.position.y 
+        pos.pose.position.x = 0.0
+        pos.pose.position.y = 0.0 
         #pos.pose.position.z = self.z
         pos.pose.position.z = self.local_position.pose.position.z
 
@@ -102,9 +108,18 @@ class Gimbal_test:
         yaw = radians(yaw_degrees)
 
         # Execute desired orientation
-        quaternion = quaternion_from_euler(roll, pitch, yaw) #roll,pitch,yaw
-        pos.pose.orientation = Quaternion(*quaternion)
+        #quaternion = quaternion_from_euler(roll, pitch, yaw) #roll,pitch,yaw
+        #pos.pose.orientation = Quaternion(*quaternion)
         
+
+        qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+        qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+        qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+        qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+
+        quaternion = [qx,qy,qz,qw]  # drone only takes in quarternion values, therefore have to do euler to quarternion conversion
+        pos.pose.orientation = Quaternion(*quaternion)
+
         pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
         # Publishing to rostopic   
         self.pub_spt.publish(pos) # updated pose from pos.pose.orientation   

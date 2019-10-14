@@ -2,7 +2,7 @@
     <arg name="headless" default="false"/>
     <arg name="gui" default="true"/>
     <arg name="ns" default="/"/>
-    <arg name="world_path" default="$(find mavros)/../sim/worlds/testing_environment_2.world" />
+    <arg name="world_path" default="$(find mavros)/../sim/worlds/testing_environment_3.world" />
     <arg name="build" default="px4_sitl_default"/>
     <!--arg name="fcu_url" default="udp://:14540@localhost:14557"/--> 
     <arg name="fcu_url" default="udp://:14540@192.168.1.36:14557"/>

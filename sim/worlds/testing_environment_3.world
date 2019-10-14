@@ -59,5 +59,34 @@
       <uri>model://ground_plane</uri>
     </include>
 
+    <include>
+      <name>pine_tree</name>
+      <uri>model://pine_tree</uri>
+      <pose>5 0 0  0 0 0</pose>
+    </include>
+
+    <include>
+      <name>oak_tree</name>
+      <uri>model://oak_tree</uri>
+      <pose>5 -4 0  0 0 0</pose>
+    </include>
+
+    <include>
+      <name>stop_sign</name>
+      <uri>model://stop_sign</uri>
+      <pose>1 4 0  0 0 0</pose>
+    </include>
+
+    <include>
+      <name>stop_light_post</name>
+      <uri>model://stop_light_post</uri>
+      <pose>-3 4 0  0 0 0</pose>
+    </include>
+
+    <include>
+      <name>person_standing</name>
+      <uri>model://person_standing</uri>
+      <pose>5 3 0  0 0 0</pose>
+    </include>
   </world>
 </sdf>
