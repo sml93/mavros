@@ -61,9 +61,9 @@ class splash_hover:
 
         rospy.wait_for_service('mavros/cmd/arming', 30) # wait for arming, queue for 30s
 
-        #rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
+        # rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
 
-        #rospy.Subscriber("hub_1/ranges_raw", RangeArray, self.hub_callback)
+        rospy.Subscriber("hub_1/ranges_raw", RangeArray, self.hub_callback)
         rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
         self.pub_pos = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=10)
         self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
@@ -75,8 +75,8 @@ class splash_hover:
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
 
             #self.arm()
-            #print "left sensor: ", self.sensor_2, "right sensor: ", self.sensor_6 
-            print "Gimbal testing now @ yaw in Offboard Mode"
+            print "left sensor: ", self.sensor_2, "right sensor: ", self.sensor_6 
+            #print "Gimbal testing now @ yaw in Offboard Mode"
             if self.seq % 2 == 0:
                 self.yaw = 0.2
             else:
@@ -89,12 +89,12 @@ class splash_hover:
             self.rate.sleep() # The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
 
 
-    #def hub_callback(self,msg): # callback invoked with the message as the first arg
-    #    self.collective = msg
-    #    for i in self.collective.ranges:
+    def hub_callback(self,msg): # callback invoked with the message as the first arg
+        self.collective = msg
+        for i in self.collective.ranges:
             # self.sensor_0 = self.collective.ranges[0].range 
-    #        self.sensor_2 = self.collective.ranges[2].range
-    #        self.sensor_6 = self.collective.ranges[6].range  
+            self.sensor_2 = self.collective.ranges[2].range
+            self.sensor_6 = self.collective.ranges[6].range  
 
     def position_callback(self, data): # callback invoked with the message as the first arg
         self.local_position = data 
@@ -120,7 +120,7 @@ class splash_hover:
 
     def test(self):
                         #   r    p    y                  yaw  
-        inputs = np.array((0.0, 0.0, 0.0, 0.2, self.yaw, self.yaw, self.yaw, self.yaw)) 
+        inputs = np.array((0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0)) 
         self.actuator_control_message.controls = inputs
         self.actuator_control_message.header.stamp = rospy.Time.now()
         self.actuator_control_message.header.seq = self.seq
