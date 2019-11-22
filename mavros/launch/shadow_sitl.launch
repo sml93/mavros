@@ -1,0 +1,57 @@
+<launch>
+    <arg name="headless" default="false"/>
+    <arg name="gui" default="true"/>
+    <arg name="ns" default="/"/>
+    <arg name="world_path" default="$(find mavros)/../sim/worlds/testing_environment_5.world" />
+    <arg name="build" default="px4_sitl_default"/>
+    <!--arg name="fcu_url" default="udp://:14540@localhost:14557"/--> 
+    <arg name="fcu_url" default="udp://:14540@192.168.1.36:14557"/>
+    <arg name="gcs_url" default="" />   <!-- GCS link is provided by SITL -->
+    <arg name="fcu_protocol" default="v2.0" />
+    <arg name="tgt_system" default="1" />
+    <arg name="tgt_component" default="1" />
+    <arg name="mavros_transformation" default="-1.57" />
+    <arg name="model" default="iris_depth_camera"/> <!--potentially there might be conflict if model was transferred to mavros, therefore, root folder remains in avoidance --> 
+
+    <param name="use_sim_time" value="true" />
+
+    <!--<node pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen" name="rqt_reconfigure" />-->
+
+    <!-- Launch PX4 SITL -->
+    <include file="$(find px4)/launch/px4.launch">
+    </include> 
+
+    <!-- Launch MavROS -->
+    <group ns="$(arg ns)">
+        <include file="$(find mavros)/launch/node.launch">
+            <arg name="pluginlists_yaml" value="$(find mavros)/launch/px4_pluginlists.yaml" />
+            <!-- Need to change the config file to get the tf topic and get local position in terms of local origin -->
+            <arg name="config_yaml" value="$(find mavros)/launch/px4_config.yaml" />
+            <arg name="fcu_url" value="$(arg fcu_url)" />
+            <arg name="gcs_url" value="$(arg gcs_url)" />
+            <arg name="tgt_system" value="$(arg tgt_system)" />
+            <arg name="tgt_component" value="$(arg tgt_component)" />
+            <arg name="fcu_protocol" value="$(arg fcu_protocol)" />
+        </include>
+    </group>
+
+    <!-- Launch Gazebo -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="headless" value="$(arg headless)"/>
+        <arg name="gui" value="$(arg gui)"/>
+        <arg name="world_name" value="$(arg world_path)" />
+    </include> 
+
+    <!--<node name="sitl" pkg="px4" type="px4" output="screen" /> --> 
+
+    <!-- RViz -->
+    <!--<node pkg="rviz" type="rviz" output="screen" name="rviz" respawn="true"
+          args="-d $(find global_planner)/resource/global_planner.rviz" />-->
+
+    <!-- can insert the launch file for the teraRanger pkg from the teraranger_array node -->
+    
+    <!-- Spawn iris with depth camera MUST INITIALISE WITH PYTHON 2.7-->
+    <node name="spawn_model" pkg="gazebo_ros" type="spawn_model" output="screen"
+          args="-sdf -database $(arg model) -model iris">
+    </node>
+</launch>
