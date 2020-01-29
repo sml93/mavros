@@ -1,8 +1,8 @@
 <launch>
     <arg name="headless" default="false"/>
-    <arg name="gui" default="true"/>
+    <arg name="gui" default="false"/> <!-- Before domain randomisation, this was true !!!!!!!!!!! -->
     <arg name="ns" default="/"/>
-    <arg name="world_path" default="$(find mavros)/../sim/worlds/testing_environment_5.world" />
+    <arg name="world_path" default="$(find mavros)/../sim/worlds/testing_environment_6.world" />
     <arg name="build" default="px4_sitl_default"/>
     <!--arg name="fcu_url" default="udp://:14540@localhost:14557"/--> 
     <arg name="fcu_url" default="udp://:14540@192.168.1.36:14557"/>
@@ -12,6 +12,7 @@
     <arg name="tgt_component" default="1" />
     <arg name="mavros_transformation" default="-1.57" />
     <arg name="model" default="iris_depth_camera"/> <!--potentially there might be conflict if model was transferred to mavros, therefore, root folder remains in avoidance --> 
+    <arg name="event_mode" default="timer" /> <!--added event for domain rand-->
 
     <param name="use_sim_time" value="true" />
 
@@ -40,7 +41,14 @@
         <arg name="headless" value="$(arg headless)"/>
         <arg name="gui" value="$(arg gui)"/>
         <arg name="world_name" value="$(arg world_path)" />
-    </include> 
+    </include> --> 
+
+    <!-- Launch domain rand -->
+    <node name="gazebo_gui" pkg="gazebo_domain_randomizer" type="gzclient" respawn="false" output="screen" />
+    <include file="$(find gazebo_domain_randomizer)/launch/domain_randomizer_2.launch">
+        <!-- <arg name="model_name" default="double_pendulum_with_base" /> -->
+        <arg name="event_mode" default="$(arg event_mode)" />
+    </include>
 
     <!--<node name="sitl" pkg="px4" type="px4" output="screen" /> --> 
 

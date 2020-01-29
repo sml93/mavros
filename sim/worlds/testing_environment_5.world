@@ -50,13 +50,18 @@
       <direction>-0.5 0.1 -0.9</direction>
     </light>
 
+    <!-- Leaves on the shelter -->
+    <include>
+      <uri>model://3_7</uri>
+    </include>
+
     <plugin name="map" filename="libStaticMapPlugin.so">
-      <center>1.325387 103.918874</center>
+      <center>1.325292 103.918908</center>
       <world_size>100</world_size>
       <map_type>satellite</map_type>
-      <zoom>22</zoom>
-      <api_key>insert_your_own_API_from_Google</api_key>
-      <use_cache>false</use_cache> <!-- set to true if the satellite cannot be synced from tmp to .gazebo/models, essentially relying on cache instead -->
+      <zoom>23</zoom>
+      <api_key>AIzaSyDIBwhQh5_6887iIV4IcYGSnkGVuI4z4NA</api_key>
+      <use_cache>true</use_cache> <!-- set to true if the satellite cannot be synced from tmp to .gazebo/models, essentially relying on cache instead -->
     </plugin>
 
   </world>

@@ -38,7 +38,7 @@ from geometry_msgs.msg import PoseStamped, Quaternion, TwistStamped #geometry
 from mavros_msgs.srv import CommandLong #service_class
 from mavros_msgs.msg import PositionTarget,ActuatorControl
 from sensor_msgs.msg import NavSatFix,Range,LaserScan #type
-from teraranger_array.msg import RangeArray
+#from teraranger_array.msg import RangeArray
 
 
 class splash_hover:
@@ -48,7 +48,7 @@ class splash_hover:
     def __init__(self):
         self.z = 1.8   
         self.armed = False  
-        self.collective = RangeArray()
+        #self.collective = RangeArray()
         self.rate = rospy.Rate(50) # 10hz is the original 
         self.sensor_2 = 0.0
         self.sensor_6 = 0.0
@@ -63,7 +63,7 @@ class splash_hover:
 
         # rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
 
-        rospy.Subscriber("hub_1/ranges_raw", RangeArray, self.hub_callback)
+        #rospy.Subscriber("hub_1/ranges_raw", RangeArray, self.hub_callback)
         rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
         self.pub_pos = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=10)
         self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
@@ -74,15 +74,16 @@ class splash_hover:
       
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
 
-            #self.arm()
-            print "left sensor: ", self.sensor_2, "right sensor: ", self.sensor_6 
+            self.avoid()
+            print "lalalalala"
+            #print "left sensor: ", self.sensor_2, "right sensor: ", self.sensor_6 
             #print "Gimbal testing now @ yaw in Offboard Mode"
-            if self.seq % 2 == 0:
-                self.yaw = 0.2
-            else:
-                self.yaw = -0.2   
-            self.test()    
-            self.seq = self.seq + 1
+            #if self.seq % 2 == 0:
+            #    self.yaw = 0.2
+            #else:
+            #    self.yaw = -0.2   
+            #self.test()    
+            #self.seq = self.seq + 1
             # self.avoid()
             # self.deviance()
                 

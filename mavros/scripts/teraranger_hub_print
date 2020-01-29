@@ -34,7 +34,7 @@ from mavros import setpoint as SP
 from std_msgs.msg import Header #type 
 from std_msgs.msg import Float64, Float32 #type from msg generation
 from geometry_msgs.msg import PoseStamped, Quaternion, TwistStamped #geometry
-from tf.transformations import quaternion_from_euler #transformation
+#from tf.transformations import quaternion_from_euler #transformation
 from mavros_msgs.srv import CommandLong #service_class
 from sensor_msgs.msg import NavSatFix,Range,LaserScan #type
 from teraranger_array.msg import RangeArray
@@ -47,8 +47,8 @@ class print_teraranger_hub:
     def __init__(self):
         self.collective = RangeArray()
         self.rate = rospy.Rate(50) # 10hz is the original 
-        self.sensor_0 = 0.0
-        self.counter = 0
+        self.sensor_2 = 0.0
+        self.sensor_6 = 0.0
 
         #rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
 
@@ -59,14 +59,15 @@ class print_teraranger_hub:
 
             #for i in self.collective.ranges:
             #    print self.collective.ranges[0].range 
-            print self.sensor_0 
+            print self.sensor_2, self.sensor_6 
 
             self.rate.sleep() #The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
 
     def hub_callback(self,msg): # callback invoked with the message as the first arg
         self.collective = msg
         for i in self.collective.ranges:
-            self.sensor_0 = self.collective.ranges[0].range 
+            self.sensor_2 = self.collective.ranges[2].range # sensor no. always begins from 0 in python
+            self.sensor_6 = self.collective.ranges[6].range 
 
     
 if __name__ == '__main__':
