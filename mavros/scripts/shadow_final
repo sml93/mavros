@@ -1,0 +1,298 @@
+#!/usr/bin/env python
+# vim:set ts=4 sw=4 et:
+#
+# Copyright 2015 UAVenture AG.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# Updated: Tarek Taha : tarek.taha@kustar.ac.ae, Vladimir Ermakov
+#    - Changed topic names after re-factoring : https://github.com/mavlink/mavros/issues/233
+#    - Use mavros.setpoint module for topics
+
+import rospy
+import thread
+import threading
+import time
+import mavros
+
+from numpy import linalg #linear algebra, can be used to find things like eigenvectors etc.
+import numpy as np
+
+from math import *
+from mavros.utils import *
+from mavros import setpoint as SP
+from std_msgs.msg import Header #type 
+from std_msgs.msg import Float64, Float32 #type from msg generation
+from geometry_msgs.msg import PoseStamped, Quaternion, TwistStamped #geometry
+#from tf.transformations import quaternion_from_euler #transformation
+from mavros_msgs.srv import CommandLong #service_class
+from sensor_msgs.msg import NavSatFix,Range,LaserScan #type
+from mavros_msgs.msg import PositionTarget,Thrust
+from tf2_msgs.msg import TFMessage
+import time
+
+
+
+class Straight_Inspection:
+    """
+    This class sends position targets to FCU's position controller
+    """
+    def __init__(self):
+        self.x = None
+        self.y = None
+        self.z = None
+        self.armed = False  
+        self.timeout = 180
+        self.rate = rospy.Rate(50) # 10hz is the original 
+        self.local_position = PoseStamped() 
+        self.counter = 0
+        self.counter_2 = 0
+        self.counter_3 = 0
+        self.counter_4 = 0
+        self.z_increment = 0.0
+        self.sensor_0 = 0.0
+        self.sensor_45 = 0.0
+        self.sensor_90 = 0.0
+        self.sensor_135 = 0.0 
+        self.sensor_180 = 0.0
+        self.sensor_225 = 0.0
+        self.sensor_270 = 0.0
+        self.sensor_315 = 0.0 
+        self.kp = 0.08 # P gain for horizontal position as well as yaw orientation
+        self.kp_z = 0.08 # P gain for altitude
+        self.min_alt = 0.40 # Starting altitude
+        self.wall_boundary = 1.50 # Distance to remain from the wall
+
+        #rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
+
+        rospy.Subscriber('/tf', TFMessage, self.callback_tf) # subscription to transform from Rtab Map
+        rospy.Subscriber("scan",  LaserScan, self.scan_callback) # subscription to range values from rplidar
+        rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback) # topic to subscribe to for localisation
+        self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10) # navigation topic to publish to
+        self.pub_vis = rospy.Publisher('mavros/vision_pose/pose', PoseStamped, queue_size=10) # topic to publish to for position estimates
+      
+        while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (run the functions within)  
+            
+            print "45: ", self.sensor_45, "z_increment: ", self.z_increment, "Counter: ", self.counter, "Counter2: ", self.counter_2, "Counter3: ", self.counter_3, "Counter4: ", self.counter_4
+            while not self.x or not self.y:
+                time.sleep(0.01)
+
+            if self.z_increment < 0.4: # if the height that the drone flies is within the ceiling limit, the spiral would continue 
+             
+                if self.sensor_0 <= 2.40: # first corner encountered, counter would increment to transit into next state
+                    self.counter = self.counter + 1 # counter locks the state
+                   
+                if self.counter < 4: # if first corner is not reached, drone would remain in the first state which is fly by left side of the room
+                    self.left() 
+                
+                elif self.counter >= 4: # else it would transit into next state  
+                    self.top_right_bot() 
+
+            else:
+
+                self.z_increment = 0.0 # the moment the increment is too high, reset the z_increment to 0.0
+                self.left() 
+
+            self.estimator()
+            self.rate.sleep() # runs the while loop at 50 times per second
+ 
+
+    def position_callback(self, data): # callback invoked with the message as the first arg
+        self.local_position = data 
+
+
+    def callback_tf(self,data): # transform data from Rtab Map
+        if data.transforms[0].child_frame_id == "base_footprint":
+            self.y = data.transforms[0].transform.translation.y
+            self.x = data.transforms[0].transform.translation.x
+            self.z = data.transforms[0].transform.translation.z
+
+
+    def scan_callback(self,data): # lidar range values are rejected if they exceed 25 metres, this is added as range values can go up to INF due to timesync
+        angle_ls = []
+        for i in range(0,1440,180):
+            angle_ls.append(-(i+1))
+
+        self.scan = data
+        if self.scan.ranges[angle_ls[0]] < 25:
+            self.sensor_0 = self.scan.ranges[angle_ls[0]]
+            
+        if self.scan.ranges[angle_ls[7]] < 25:
+            self.sensor_45 = self.scan.ranges[angle_ls[7]]
+
+        if self.scan.ranges[angle_ls[6]] < 25:
+            self.sensor_90 = self.scan.ranges[angle_ls[6]]
+        
+        if self.scan.ranges[angle_ls[5]] < 25:
+            self.sensor_135 = self.scan.ranges[angle_ls[5]]
+        
+        if self.scan.ranges[angle_ls[4]] < 25:
+            self.sensor_180 = self.scan.ranges[angle_ls[4]]
+        
+        if self.scan.ranges[angle_ls[3]] < 25:
+            self.sensor_225 = self.scan.ranges[angle_ls[3]]
+        
+        if self.scan.ranges[angle_ls[2]] < 25:
+            self.sensor_270 = self.scan.ranges[angle_ls[2]]
+        
+        if self.scan.ranges[angle_ls[1]] < 25:
+            self.sensor_315 = self.scan.ranges[angle_ls[1]]  
+
+
+    def left(self): # navigation on the left side of the room
+        # Initialise necessary headers
+        pos = PoseStamped()
+        pos.header = Header()
+        pos.header.frame_id = "left"
+
+        # Establish desired setpoints via a P controller for X Y Z Position
+        pos.pose.position.x = self.local_position.pose.position.x - (self.kp * ( self.sensor_0 - self.wall_boundary ))
+        pos.pose.position.y = self.local_position.pose.position.y - (self.kp * ( self.sensor_90 - self.wall_boundary ))
+        pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))    
+            
+        roll_degrees = 0.0 
+        roll = radians(roll_degrees)
+        pitch_degrees = 0.0 
+        pitch = radians(pitch_degrees)
+        yaw_degrees = 180.0 + (self.kp * (self.sensor_45 - self.sensor_135)) # P controller for yaw orientation
+        yaw = radians(yaw_degrees)
+
+        qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+        qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+        qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+        qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+
+        quaternion = [qx,qy,qz,qw] # drone only takes in quarternion values, therefore have to do euler to quarternion conversion
+        pos.pose.orientation = Quaternion(*quaternion)
+        
+        # Publishing to rostopic 
+        pos.header.stamp = rospy.Time.now()  
+        self.pub_spt.publish(pos) # updated pose from pos.pose.orientation
+
+
+    def top_right_bot(self):
+        # Initialise necessary headers
+        pos = PoseStamped()
+        pos.header = Header()
+        pos.header.frame_id = "top_right_bot" 
+
+        if self.sensor_0 <= 2.20: # transition from front side to right side of the room 
+            self.counter_2 = self.counter_2 + 1 # counter locks the state
+
+
+        if self.counter_2 < 4: # navigation on the front side of the room   
+            # Establish desired setpoints via P controller
+            pos.pose.position.x = self.local_position.pose.position.x - (self.kp * ( self.sensor_90 - self.wall_boundary ))
+            pos.pose.position.y = self.local_position.pose.position.y + (self.kp * ( self.sensor_0 - self.wall_boundary ))
+            pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) )) 
+            
+            roll_degrees = 0.0 
+            roll = radians(roll_degrees)
+            pitch_degrees = 0.0 
+            pitch = radians(pitch_degrees)
+            yaw_degrees = 90.0 + (self.kp * (self.sensor_45 - self.sensor_135)) # P controller for yaw orientation
+            yaw = radians(yaw_degrees)
+
+            qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+            qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+            qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+            qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+
+            quaternion = [qx,qy,qz,qw]
+            pos.pose.orientation = Quaternion(*quaternion)
+            
+
+        elif self.counter_2 >= 4:
+                
+            if self.sensor_45 <= 1.0: # transition from right side to the back side of the room 
+                self.counter_3 = self.counter_3 + 1 # counter locks the state
+
+            if self.counter_3 < 4: # navigation on the right side of the room         
+                pos.pose.position.x = self.local_position.pose.position.x + (self.kp * ( self.sensor_0 - self.wall_boundary ))
+                pos.pose.position.y = self.local_position.pose.position.y + (self.kp * ( self.sensor_90 - self.wall_boundary ))
+                pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))
+            
+                roll_degrees = 0.0 
+                roll = radians(roll_degrees)
+                pitch_degrees = 0.0 
+                pitch = radians(pitch_degrees)
+                yaw_degrees = 0.0 + (self.kp * (self.sensor_45 - self.sensor_135)) 
+                yaw = radians(yaw_degrees)
+
+                qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+                qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+                qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+                qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+
+                quaternion = [qx,qy,qz,qw]
+                pos.pose.orientation = Quaternion(*quaternion)
+
+            elif self.counter_3 >= 4:   
+
+                if self.sensor_0 <= 2.50: # transition from back side to the left side of the room 
+                    self.counter_4 = self.counter_4 + 1 # counter locks the state
+
+                if self.counter_4 < 4: # navigation on the back side of the room  
+                    pos.pose.position.x = self.local_position.pose.position.x + (self.kp * ( self.sensor_90 - self.wall_boundary ))
+                    pos.pose.position.y = self.local_position.pose.position.y - (self.kp * ( self.sensor_0 - self.wall_boundary ))
+                    pos.pose.position.z = self.local_position.pose.position.z - (self.kp_z * ( self.local_position.pose.position.z - (self.min_alt + self.z_increment) ))
+                
+                    roll_degrees = 0.0 
+                    roll = radians(roll_degrees)
+                    pitch_degrees = 0.0 
+                    pitch = radians(pitch_degrees)
+                    yaw_degrees = 270.0 + (self.kp * (self.sensor_45 - self.sensor_135)) 
+                    yaw = radians(yaw_degrees)
+
+                    qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+                    qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+                    qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+                    qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+
+                    quaternion = [qx,qy,qz,qw]
+                    pos.pose.orientation = Quaternion(*quaternion)
+
+                elif self.counter_4 >= 4: # resets the states and goes back to the left side of the room, essentially, the drone is flying in a clockwise fashion within the room
+                    self.counter = 0
+                    self.counter_2 = 0
+                    self.counter_3 = 0
+                    self.counter_4 = 0 
+                    self.z_increment = self.z_increment + 0.20 # while it begins the next clockwise loop, it also increases in altitude so the drone spirals up 
+
+
+        pos.header.stamp = rospy.Time.now()
+        self.pub_spt.publish(pos)
+        
+            
+    def estimator(self):
+
+        # Initialise necessary headers
+        pos = PoseStamped()
+        pos.header = Header()
+        pos.header.frame_id = "vision"
+
+        pos.pose.position.x = self.x
+        pos.pose.position.y = self.y
+            
+        pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
+        self.pub_vis.publish(pos)
+            
+
+if __name__ == '__main__':
+    rospy.init_node('shadow_test_node', anonymous=True)
+
+    node = Straight_Inspection()
+
+    rospy.spin()  # spin() simply keeps python from exiting until this node is stopped
+     

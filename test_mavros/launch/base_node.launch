@@ -26,8 +26,8 @@
 		<param name="rate" value="$(arg rate)" />
 		<param name="use_pid" value="$(arg use_pid)" />
 
-		<param name="mode" value="$(arg mode)" />
-		<param name="shape" value="$(arg shape)" />
+		<!--<param name="mode" value="position" />-->
+		<!--<param name="shape" value="$(arg shape)" />-->
 
 		<param name="linvel_p_gain" value="$(arg linvel_p_gain)" />
 		<param name="linvel_i_gain" value="$(arg linvel_i_gain)" />
