@@ -162,6 +162,11 @@ class borealis_vision:
 
         pos.pose.position.x = self.slam_position.pose.position.x
         pos.pose.position.y = self.slam_position.pose.position.y
+
+        pos.pose.orientation.x = self.slam_position.pose.orientation.x
+        pos.pose.orientation.y = self.slam_position.pose.orientation.y
+        pos.pose.orientation.z = self.slam_position.pose.orientation.z
+        pos.pose.orientation.w = self.slam_position.pose.orientation.w
             
         pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
         self.pub_vis.publish(pos)
