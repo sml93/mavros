@@ -1,0 +1,101 @@
+#!/usr/bin/env python
+# vim:set ts=4 sw=4 et:
+#
+# Copyright 2015 UAVenture AG.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# Updated: Tarek Taha : tarek.taha@kustar.ac.ae, Vladimir Ermakov
+#    - Changed topic names after re-factoring : https://github.com/mavlink/mavros/issues/233
+#    - Use mavros.setpoint module for topics
+
+import rospy
+import thread
+import threading
+import time
+import mavros
+
+import numpy as np
+
+from math import *
+from mavros.utils import *
+from mavros import setpoint as SP
+from std_msgs.msg import Header #type 
+from std_msgs.msg import Float64, Float32 #type from msg generation
+from geometry_msgs.msg import PoseStamped, Quaternion, TwistStamped #geometry
+#from tf.transformations import quaternion_from_euler #transformation
+from mavros_msgs.srv import CommandLong #service_class
+from sensor_msgs.msg import NavSatFix,Range,LaserScan #type
+from teraranger_array.msg import RangeArray
+from follow_me_driver_ros.msg import FollowMeDriverConfig,FollowMeDriverRS485Config,PolarPoint2D  
+
+
+class follow_me:
+    """
+    This class sends position targets to FCU's position controller
+    """
+    def __init__(self):
+        self.first_params = FollowMeDriverConfig()
+        self.second_params = FollowMeDriverRS485Config()
+        self.rate = rospy.Rate(50) # 10hz is the original 
+        self.polar = PolarPoint2D()
+        self.x = 0.0
+        self.y = 0.0
+        
+        #rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
+
+        rospy.Subscriber("/follow_me_master_beacon/follow_me_polar_point_2d", PolarPoint2D , self.callback)
+        self.pub_driver = rospy.Publisher('/follow_me_master_beacon/follow_me_config', FollowMeDriverConfig, queue_size=10)
+        self.pub_driver_rs485 = rospy.Publisher('/follow_me_master_beacon/follow_me_rs485_config', FollowMeDriverRS485Config, queue_size=10)
+        #rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
+
+        self.first_params.printout_mode = "Binary"
+        self.first_params.swap_beacons = True 
+        self.first_params.ema_window = 10
+        self.first_params.beacons_span = 112
+
+        self.second_params.rs485_slave_id = 1
+        self.second_params.rs485_baudrate = 115200
+        self.second_params.rs485_parity = 2
+
+        a = 0
+      
+        while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
+
+            if a < 5:
+                rospy.loginfo("follow me initialising")
+                self.pub_driver.publish(self.first_params)
+                self.pub_driver_rs485.publish(self.second_params)
+                a = a + 1
+
+            else:
+                #rospy.loginfo("follow me initialised")
+                self.x = np.cos(self.polar.heading) * self.polar.distance
+                self.y = np.sin(self.polar.heading) * self.polar.distance
+                print self.x, self.y
+
+            self.rate.sleep() #The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
+
+    def callback(self,data): # callback invoked with the message as the first arg
+        self.polar = data
+         
+if __name__ == '__main__':
+
+    rospy.init_node('follow_me', anonymous=True)
+
+    node = follow_me()
+
+    rospy.spin()
+     
+
