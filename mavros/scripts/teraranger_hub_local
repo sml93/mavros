@@ -40,7 +40,7 @@ from sensor_msgs.msg import NavSatFix,Range,LaserScan #type
 from teraranger_array.msg import RangeArray
 
 
-class print_teraranger_hub:
+class teraranger_hub_local:
     """
     This class sends position targets to FCU's position controller
     """
@@ -49,6 +49,10 @@ class print_teraranger_hub:
         self.rate = rospy.Rate(50) # 10hz is the original 
         self.sensor_2 = 0.0
         self.sensor_6 = 0.0
+        self.x_local = 0.0
+        self.y_local = 0.0
+        self.origin_x = 1.0
+        self.origin_y = 1.0
 
         #rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
 
@@ -56,10 +60,11 @@ class print_teraranger_hub:
         #rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
       
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
+            
+            self.x_local = self.sensor_2 - self.origin_x
+            self.y_local = self.sensor_6 - self.origin_y 
+            print self.sensor_2, self.sensor_6, "X:", self.x_local, "Y:", self.y_local
 
-            #for i in self.collective.ranges:
-            #    print self.collective.ranges[0].range 
-            print self.sensor_2, self.sensor_6 
 
             self.rate.sleep() #The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
 
@@ -71,10 +76,9 @@ class print_teraranger_hub:
 
     
 if __name__ == '__main__':
-    rospy.init_node('teraranger_hub_print_node', anonymous=True)
-
-    node = print_teraranger_hub()
-
-    rospy.spin()  # spin() simply keeps python from exiting until this node is stopped
+    rospy.init_node('teraranger_hub_local', anonymous=True)
+    node = teraranger_hub_local()
+    #node.hub_callback
+    rospy.spin()  # spin() simply keeps ros python from exiting until this node is stopped
      
 

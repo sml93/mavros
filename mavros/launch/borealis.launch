@@ -22,6 +22,14 @@
     <!-- Launch PX4 SITL -->
     <include file="$(find px4)/launch/px4.launch">
     </include> 
+
+    <!-- hector slam launch file-->
+    <include file="$(find hector_slam_launch)/launch/hector_borealis.launch">
+    </include>
+
+    <!-- hector slam connecting node-->	
+    <node pkg="mavros" name="borealis_vision" type="borealis_vision" output="screen">
+    </node>
  	
     <!-- Launch MavROS -->
     <group ns="$(arg ns)">

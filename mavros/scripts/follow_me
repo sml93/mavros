@@ -38,43 +38,64 @@ from geometry_msgs.msg import PoseStamped, Quaternion, TwistStamped #geometry
 from mavros_msgs.srv import CommandLong #service_class
 from sensor_msgs.msg import NavSatFix,Range,LaserScan #type
 from teraranger_array.msg import RangeArray
+from follow_me_driver_ros.msg import FollowMeDriverConfig,FollowMeDriverRS485Config,PolarPoint2D  
 
 
-class print_teraranger_hub:
+class follow_me:
     """
     This class sends position targets to FCU's position controller
     """
     def __init__(self):
-        self.collective = RangeArray()
+        self.first_params = FollowMeDriverConfig()
+        self.second_params = FollowMeDriverRS485Config()
         self.rate = rospy.Rate(50) # 10hz is the original 
-        self.sensor_2 = 0.0
-        self.sensor_6 = 0.0
-
+        self.polar = PolarPoint2D()
+        self.x = 0.0
+        self.y = 0.0
+        
         #rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
 
-        rospy.Subscriber("hub_1/ranges_raw", RangeArray, self.hub_callback)
+        rospy.Subscriber("/follow_me_master_beacon/follow_me_polar_point_2d", PolarPoint2D , self.callback)
+        self.pub_driver = rospy.Publisher('/follow_me_master_beacon/follow_me_config', FollowMeDriverConfig, queue_size=10)
+        self.pub_driver_rs485 = rospy.Publisher('/follow_me_master_beacon/follow_me_rs485_config', FollowMeDriverRS485Config, queue_size=10)
         #rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
+
+        self.first_params.printout_mode = "Binary"
+        self.first_params.swap_beacons = True 
+        self.first_params.ema_window = 10
+        self.first_params.beacons_span = 112
+
+        self.second_params.rs485_slave_id = 1
+        self.second_params.rs485_baudrate = 115200
+        self.second_params.rs485_parity = 2
+
+        a = 0
       
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
 
-            #for i in self.collective.ranges:
-            #    print self.collective.ranges[0].range 
-            print self.sensor_2, self.sensor_6 
+            if a < 5:
+                rospy.loginfo("follow me initialising")
+                self.pub_driver.publish(self.first_params)
+                self.pub_driver_rs485.publish(self.second_params)
+                a = a + 1
+
+            else:
+                #rospy.loginfo("follow me initialised")
+                self.x = np.cos(self.polar.heading) * self.polar.distance
+                self.y = np.sin(self.polar.heading) * self.polar.distance
+                print self.x, self.y
 
             self.rate.sleep() #The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
 
-    def hub_callback(self,msg): # callback invoked with the message as the first arg
-        self.collective = msg
-        for i in self.collective.ranges:
-            self.sensor_2 = self.collective.ranges[2].range # sensor no. always begins from 0 in python
-            self.sensor_6 = self.collective.ranges[6].range 
-
-    
+    def callback(self,data): # callback invoked with the message as the first arg
+        self.polar = data
+         
 if __name__ == '__main__':
-    rospy.init_node('teraranger_hub_print_node', anonymous=True)
 
-    node = print_teraranger_hub()
+    rospy.init_node('follow_me', anonymous=True)
 
-    rospy.spin()  # spin() simply keeps python from exiting until this node is stopped
+    node = follow_me()
+
+    rospy.spin()
      
 

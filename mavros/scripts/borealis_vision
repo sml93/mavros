@@ -41,7 +41,7 @@ from sensor_msgs.msg import NavSatFix,Range,LaserScan #type
 #from teraranger_array.msg import RangeArray
 
 
-class splash_hover:
+class borealis_vision:
     """
     This class sends position targets to FCU's position controller
     """
@@ -54,6 +54,7 @@ class splash_hover:
         self.sensor_6 = 0.0
         self.timeout = 180
         self.local_position = PoseStamped()
+        self.slam_position = PoseStamped()
         self.count = 0
         self.counter = 0
         self.actuator_control_message = ActuatorControl() 
@@ -65,40 +66,37 @@ class splash_hover:
 
         #rospy.Subscriber("hub_1/ranges_raw", RangeArray, self.hub_callback)
         rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
+        rospy.Subscriber("/slam_out_pose", PoseStamped, self.slam_callback)
         self.pub_pos = rospy.Publisher('mavros/setpoint_raw/local', PositionTarget, queue_size=10)
         self.pub_spt = rospy.Publisher('mavros/setpoint_position/local', PoseStamped, queue_size=10)
-        self.message_pub = rospy.Publisher("/mavros/actuator_control", ActuatorControl, queue_size=10)
-
+        self.pub_vis = rospy.Publisher('mavros/vision_pose/pose', PoseStamped, queue_size=10) # topic to publish to for position estimates
+        
         rospy.wait_for_service('mavros/cmd/command', 30)
         self._srv_cmd_long = rospy.ServiceProxy('mavros/cmd/command', CommandLong, persistent=True)
       
         while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
 
-            self.avoid()
-            print "lalalalala"
-            #print "left sensor: ", self.sensor_2, "right sensor: ", self.sensor_6 
-            #print "Gimbal testing now @ yaw in Offboard Mode"
-            #if self.seq % 2 == 0:
-            #    self.yaw = 0.2
-            #else:
-            #    self.yaw = -0.2   
-            #self.test()    
-            #self.seq = self.seq + 1
-            # self.avoid()
-            # self.deviance()
-                
+            self.estimator()
+            #self.avoid()
+            #print "slam x:", self.slam_position.pose.position.x, "slam y:", self.slam_position.pose.position.y, "real x:", self.local_position.pose.position.x, "real y:", self.local_position.pose.position.y,
+            print "real x:", self.local_position.pose.position.x, "real y:", self.local_position.pose.position.y,
+ 
+            
             self.rate.sleep() # The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
 
 
-    def hub_callback(self,msg): # callback invoked with the message as the first arg
-        self.collective = msg
-        for i in self.collective.ranges:
-            # self.sensor_0 = self.collective.ranges[0].range 
-            self.sensor_2 = self.collective.ranges[2].range
-            self.sensor_6 = self.collective.ranges[6].range  
+    # def hub_callback(self,msg): # callback invoked with the message as the first arg
+    #     self.collective = msg
+    #     for i in self.collective.ranges:
+    #         # self.sensor_0 = self.collective.ranges[0].range 
+    #         self.sensor_2 = self.collective.ranges[2].range
+    #         self.sensor_6 = self.collective.ranges[6].range  
 
     def position_callback(self, data): # callback invoked with the message as the first arg
         self.local_position = data 
+
+    def slam_callback(self, data): # callback invoked with the message as the first arg
+        self.slam_position = data 
 
     def arm(self):
         if self.count < self.timeout:
@@ -117,17 +115,6 @@ class splash_hover:
                 self.armed = True
             self.count = self.count + 1
             self.rate.sleep() # The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.
-
-
-    def test(self):
-                        #   r    p    y                  yaw  
-        inputs = np.array((0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0)) 
-        self.actuator_control_message.controls = inputs
-        self.actuator_control_message.header.stamp = rospy.Time.now()
-        self.actuator_control_message.header.seq = self.seq
-        self.actuator_control_message.group_mix = 0 # 0 is the default one for iris and quad, gimbal control ActuatorControl.PX4_MIX_PAYLOAD is the original, group 3 is for manual pass through, 2 for pxh shell only (vmount), 3 for RC, 1 is alternate and it can be implemented via mavros  
-        # rospy.loginfo_throttle(2, inputs)
-        self.message_pub.publish(self.actuator_control_message)
 
     def avoid(self): 
         # Initialise necessary headers
@@ -166,35 +153,29 @@ class splash_hover:
         self.pub_spt.publish(pos) # updated pose from pos.pose.orientation
 
 
-    def deviance(self):
-        # either u do the below or u need to use bitmasking for uint16, jus basically add the uint16 numbers found in mavros documentation
-        pos = PositionTarget(coordinate_frame = PositionTarget.FRAME_LOCAL_NED, # (originally) Local coordinate frame, Z-up (x: north, y: east, z: down), somehow it transformed to ENU (x: east, y: north, z: up)
-                             type_mask=
-                             # PositionTarget.IGNORE_PX + PositionTarget.IGNORE_PY + PositionTarget.IGNORE_PZ +
-                             PositionTarget.IGNORE_VX + PositionTarget.IGNORE_VY + PositionTarget.IGNORE_VZ +
-                             PositionTarget.IGNORE_AFX + PositionTarget.IGNORE_AFY + PositionTarget.IGNORE_AFZ +
-                             PositionTarget.IGNORE_YAW_RATE 
-                             # PositionTarget.IGNORE_YAW
-                             )
+    def estimator(self):
 
-        pos.header.frame_id = "deviance" 
+        # Initialise necessary headers
+        pos = PoseStamped()
+        pos.header = Header()
+        pos.header.frame_id = "vision"
 
-        # Establish desired setpoints
-        pos.position.x = self.local_position.pose.position.x 
-        pos.position.y = self.local_position.pose.position.y 
-        pos.position.z = self.local_position.pose.position.z 
+        pos.pose.position.x = self.slam_position.pose.position.x
+        pos.pose.position.y = self.slam_position.pose.position.y
+
+        pos.pose.orientation.x = self.slam_position.pose.orientation.x
+        pos.pose.orientation.y = self.slam_position.pose.orientation.y
+        pos.pose.orientation.z = self.slam_position.pose.orientation.z
+        pos.pose.orientation.w = self.slam_position.pose.orientation.w
             
-        pos.yaw = radians(180.0)
+        pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
+        self.pub_vis.publish(pos)
 
-        pos.header.stamp = rospy.Time.now()
-        self.pub_pos.publish(pos) 
-
-    
 
 if __name__ == '__main__':
-    rospy.init_node('splash_hover_node', anonymous=True)
+    rospy.init_node('borealis_vision', anonymous=True)
 
-    node = splash_hover()
+    node = borealis_vision()
 
     rospy.spin()  # spin() simply keeps python from exiting until this node is stopped
      

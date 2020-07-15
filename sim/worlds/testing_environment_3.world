@@ -71,18 +71,22 @@
       <pose>5 -4 0  0 0 0</pose>
     </include>
 
-    <include>
+<!--    <include>
       <name>stop_sign</name>
       <uri>model://stop_sign</uri>
       <pose>1 4 0  0 0 0</pose>
-    </include>
+    </include> -->
 
-    <include>
+<!--    <include>
       <name>stop_light_post</name>
       <uri>model://stop_light_post</uri>
       <pose>-3 4 0  0 0 0</pose>
-    </include>
+    </include> -->
 
+    <include>
+      <uri>model://asphalt_plane</uri>
+    </include>
+  
     <include>
       <name>person_standing</name>
       <uri>model://person_standing</uri>
