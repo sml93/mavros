@@ -49,7 +49,7 @@ class borealis_vision:
         self.z = 1.8   
         self.armed = False  
         #self.collective = RangeArray()
-        self.rate = rospy.Rate(50) # 10hz is the original 
+        self.rate = rospy.Rate(10) # 10hz is the original 
         self.sensor_2 = 0.0
         self.sensor_6 = 0.0
         self.timeout = 180
@@ -79,7 +79,7 @@ class borealis_vision:
             self.estimator()
             #self.avoid()
             #print "slam x:", self.slam_position.pose.position.x, "slam y:", self.slam_position.pose.position.y, "real x:", self.local_position.pose.position.x, "real y:", self.local_position.pose.position.y,
-            print "real x:", self.local_position.pose.position.x, "real y:", self.local_position.pose.position.y,
+            print "slam initialising"
  
             
             self.rate.sleep() # The loop calls rate.sleep(), which sleeps just long enough to maintain the desired rate through the loop.

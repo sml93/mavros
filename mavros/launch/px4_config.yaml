@@ -100,7 +100,7 @@ setpoint_attitude:
     rate_limit: 50.0
 
 setpoint_raw:
-  thrust_scaling: 1.0       # used in setpoint_raw attitude callback.
+  thrust_scaling: 0.7       # used in setpoint_raw attitude callback.
   # Note: PX4 expects normalized thrust values between 0 and 1, which means that
   # the scaling needs to be unitary and the inputs should be 0..1 as well.
 
