@@ -29,7 +29,9 @@
         <!--<include file="$(find teraranger_array)/launch/hub_evo_60m_example.launch">
         </include>--> 
 
-	<!-- <include file="$(find rplidar_ros)/launch/rplidar_a3.launch">
+        <node pkg="tf" type="static_transform_publisher" name="base_to_scan" args="0 0 0.03 0 0 0 base_link laser 100" />
+
+	<include file="$(find rplidar_ros)/launch/rplidar_s1.launch">
         </include> -->	
 
 </launch>

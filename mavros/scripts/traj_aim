@@ -139,18 +139,22 @@ def setpoint_demo():
     # setpoint.set(5.0, 5.0, start_height, delay_start)
 
     delay_start = 2.0
-    start_height = 1.0
+    start_height = 1.5
     rospy.loginfo("Moving according to traj")
+
     setpoint.set(0.0, 0.0, start_height, delay_start)
-    setpoint.set(1.5, 0.0, start_height, delay_start)
-    setpoint.set(1.5, 1.5, start_height, delay_start)
-    setpoint.set(0.0, 1.5, start_height, delay_start)
-    setpoint.set(-1.5, 1.5, start_height, delay_start)
-    setpoint.set(-1.5, 0.0, start_height, delay_start)
-    setpoint.set(-1.5, -1.5, start_height, delay_start)
     setpoint.set(0.0, -1.5, start_height, delay_start)
-    setpoint.set(1.5, -1.5, start_height, delay_start)
-    setpoint.set(1.5, 0.0, start_height, delay_start)
+    setpoint.set(0.0, -2.0, start_height, delay_start)
+    setpoint.set(2.0, -2.0, start_height, delay_start)
+    setpoint.set(3.2, -2.0, start_height, delay_start)
+    setpoint.set(3.2, -1.2, start_height, delay_start)
+    setpoint.set(3.2, 0.0, start_height, delay_start)
+    setpoint.set(2.0, 0.0, start_height, delay_start)
+    setpoint.set(0.0, 0.0, start_height, delay_start)
+
+    #setpoint.set(-2.4, -1.2, start_height, delay_start)
+    #setpoint.set(-2.4, -0.0, start_height, delay_start)
+    #setpoint.set(-1.2, -0.0, start_height, delay_start)
 
     #circle
 

@@ -5,7 +5,7 @@
 	<!--<arg name="fcu_url" default="/dev/ttyMFD1:921600" />-->
 	<arg name="fcu_url" default="/dev/ttyPixhawk:921600" /> <!-- Saved under /etc/Udev/ rules -->
 	<arg name="gcs_url" default="udp://:14540@localhost:14557" />
-	<arg name="tgt_system" default="1" />
+	<arg name="tgt_system" default="4" />
 	<arg name="tgt_component" default="1" />
 	<arg name="log_output" default="screen" />
 	<arg name="fcu_protocol" default="v2.0" /> <!--**--> 
