@@ -1,0 +1,5 @@
+<launch>
+    <include file="$(find /home/emmanuel/src/Firmware)/launch/px4.launch"/>
+
+    <node name="offb" pkg="offb" type="offb_node" output="screen"/>
+</launch>

@@ -1,0 +1,155 @@
+#!/usr/bin/env python
+# vim:set ts=4 sw=4 et:
+#
+# Copyright 2015 UAVenture AG.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# Updated: Tarek Taha : tarek.taha@kustar.ac.ae, Vladimir Ermakov
+#    - Changed topic names after re-factoring : https://github.com/mavlink/mavros/issues/233
+#    - Use mavros.setpoint module for topics
+
+import rospy
+import thread
+import threading
+import time
+import mavros
+
+from numpy import linalg #linear algebra, can be used to find things like eigenvectors etc.
+import numpy as np
+
+from math import *
+from mavros.utils import *
+from mavros import setpoint as SP
+from std_msgs.msg import Header #type 
+from std_msgs.msg import Float64, Float32 #type from msg generation
+from geometry_msgs.msg import PoseStamped, Quaternion, TwistStamped, TransformStamped #geometry
+# from tf.transformations import quaternion_from_euler #transformation
+from mavros_msgs.srv import CommandLong #service_class
+from mavros_msgs.msg import PositionTarget,Thrust,AttitudeTarget
+from sensor_msgs.msg import NavSatFix,Range #type
+from tf2_msgs.msg import TFMessage
+
+
+class vision:
+    """
+    This class sends position targets to FCU's position controller
+    """
+    def __init__(self):
+        self.y = 0.0
+        self.x = 0.0
+        self.z = 0.0
+        self.rx = 0.0
+        self.ry = 0.0
+        self.rz = 0.0  
+        self.rate = rospy.Rate(50) # 10hz is the original 
+        self.local_position = PoseStamped() 
+        self.vision_position = PoseStamped() 
+        self.camera_pose = TransformStamped() 
+
+        # rospy.Subscriber("subscribed topic",topic type,callback invoked with the message as the first arg)  
+
+        rospy.Subscriber('/tf', TFMessage, self.callback_tf)
+        rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.position_callback)
+        rospy.Subscriber("mavros/vision_pose/pose", PoseStamped, self.vision_callback)
+        self.pub_vis = rospy.Publisher('mavros/vision_pose/pose', PoseStamped, queue_size=10)
+        self.x_list = []
+        self.y_list = []
+        self.z_list = []
+        i = 0.0
+      
+        while not rospy.is_shutdown(): #subsequent functions below are automatically run using this while loop (inert functions)  
+            #self.arm() 
+
+            if i < 15:
+                #self.x_list.append(self.local_position.pose.position.x) 
+                self.y_list.append(self.y) 
+                self.x_list.append(self.x) 
+                self.z_list.append(self.z) 
+                i += 1
+            else:
+                self.filtered_y = np.median(self.y_list)
+                self.filtered_x = np.median(self.x_list)
+                self.filtered_z = np.median(self.z_list)
+                self.y_list.pop(0)
+                self.x_list.pop(0)
+                self.z_list.pop(0)
+                self.y_list.append(self.y) 
+                self.x_list.append(self.x) 
+                self.z_list.append(self.z) 
+                self.filtered_estimator()
+                print i, self.vision_position.pose.orientation.z, self.local_position.pose.position.z
+                
+            self.rate.sleep()
+
+    def position_callback(self, data): # callback invoked with the message as the first arg
+        self.local_position = data
+
+    def vision_callback(self, data): # callback invoked with the message as the first arg
+        self.vision_position = data
+
+        
+    def callback_tf(self,data):
+        if data.transforms[0].header.frame_id == "camera_odom_frame":
+            self.y = data.transforms[0].transform.translation.y
+            self.x = data.transforms[0].transform.translation.x
+            self.z = data.transforms[0].transform.translation.z
+            self.rx = data.transforms[0].transform.rotation.x
+            self.ry = data.transforms[0].transform.rotation.y
+            self.rz = data.transforms[0].transform.rotation.z
+        else:
+            self.y = self.y
+            self.x = self.x
+            self.z = self.z
+            self.rx = self.rx
+            self.ry = self.ry
+            self.rz = self.rz
+
+
+    def filtered_estimator(self):
+
+        # Initialise necessary headers
+        pos = PoseStamped()
+        pos.header = Header()
+        pos.header.frame_id = "filtered_vision"
+
+        pos.pose.position.x = self.filtered_x
+        pos.pose.position.y = self.filtered_y
+        pos.pose.position.z = self.filtered_z
+
+        roll = self.rx 
+        pitch = self.ry
+        yaw = self.rz
+
+        qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+        qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+        qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+        qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+
+        quaternion = [qx,qy,qz,qw]
+        pos.pose.orientation = Quaternion(*quaternion)
+            
+        pos.header.stamp = rospy.Time.now() # Update timestamp for each published SP
+        self.pub_vis.publish(pos)
+
+
+if __name__ == '__main__':
+    rospy.init_node('vision', anonymous=True)
+
+    node = vision()
+
+    rospy.spin()  # spin() simply keeps python from exiting until this node is stopped
+     
+
+

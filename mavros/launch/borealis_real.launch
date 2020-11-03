@@ -1,0 +1,43 @@
+<launch>
+	<!-- vim: set ft=xml noet : -->
+	<!-- example launch script for PX4 based FCU's -->
+
+	<!--<arg name="fcu_url" default="/dev/ttyMFD1:921600" />-->
+	<arg name="fcu_url" default="/dev/ttyPixhawk:921600" /> <!-- Saved under /etc/Udev/ rules -->
+	<arg name="gcs_url" default="udp://:14540@localhost:14557" />
+	<arg name="tgt_system" default="4" />
+	<arg name="tgt_component" default="1" />
+	<arg name="log_output" default="screen" />
+	<arg name="fcu_protocol" default="v2.0" /> <!--**--> 
+	<arg name="mavros_transformation" default="-1.57" />
+	<arg name="respawn_mavros" default="false" /> <!--**-->
+
+	<include file="$(find mavros)/launch/node.launch">
+		<arg name="pluginlists_yaml" value="$(find mavros)/launch/px4_pluginlists.yaml" />
+		<arg name="config_yaml" value="$(find mavros)/launch/px4_config.yaml" />
+
+		<arg name="fcu_url" value="$(arg fcu_url)" />
+		<arg name="gcs_url" value="$(arg gcs_url)" />
+		<arg name="tgt_system" value="$(arg tgt_system)" />
+		<arg name="tgt_component" value="$(arg tgt_component)" />
+		<arg name="fcu_protocol" value="$(arg fcu_protocol)" />
+		<arg name="log_output" value="$(arg log_output)" />
+		<arg name="respawn_mavros" default="$(arg respawn_mavros)" />
+	</include>
+
+        <!-- hector slam launch file-->
+        <include file="$(find hector_slam_launch)/launch/hector_borealis_real.launch">
+        </include>
+
+        <!-- hector slam connecting node-->	
+        <node pkg="mavros" name="borealis_vision" type="borealis_vision" output="screen">
+        </node>
+
+	 <!-- can insert the launch file for the teraRanger pkg from the teraranger_array node -->
+        <!--<include file="$(find teraranger_array)/launch/hub_evo_60m_example.launch">
+        </include>--> 
+
+	<include file="$(find rplidar_ros)/launch/rplidar_s1.launch">
+        </include> -->	
+
+</launch>
